@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Cosmic Forge - Kibble-Zurek Phase Transition Simulator</title>
+    <style>
+        /* Basic Reset & Theme */
+        :root {
+            --bg-color: #0d1117;
+            --primary-text-color: #c9d1d9;
+            --secondary-text-color: #8b949e;
+            --border-color: #30363d;
+            --accent-color: #58a6ff;
+            --panel-bg-color: #161b22;
+            --input-bg-color: #010409;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--primary-text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            line-height: 1.6;
+        }
+
+        h1, h2, h3 {
+            color: var(--primary-text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3em;
+            font-weight: 600;
+        }
+
+        /* Layout */
+        #app-container {
+            display: grid;
+            grid-template-columns: 1fr 450px;
+            grid-template-rows: auto 1fr;
+            grid-template-areas:
+                "header header"
+                "main   sidebar";
+            height: 95vh;
+            gap: 1rem;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        #header {
+            grid-area: header;
+            text-align: center;
+            padding-bottom: 0;
+        }
+        #header h1 {
+            margin: 0;
+            border: none;
+        }
+
+        #simulation-window {
+            grid-area: main;
+            background-color: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            min-height: 0; /* Important for flex/grid children to shrink */
+            position: relative;
+            overflow: hidden; /* Ensure canvas fits in rounded corners */
+        }
+
+        #simulation-window canvas {
+            display: block; /* remove bottom margin */
+        }
+
+        #sidebar {
+            grid-area: sidebar;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+            min-height: 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--accent-color) var(--panel-bg-color);
+        }
+
+        #controls-panel, #info-container {
+            background-color: var(--panel-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+        }
+
+        /* Controls Styling */
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .control-group .description {
+            font-size: 0.85rem;
+            color: var(--secondary-text-color);
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            -webkit-appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 5px;
+            background: #333;
+            border-radius: 5px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            margin-top: -6.5px;
+        }
+
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            background-color: var(--input-bg-color);
+            color: var(--primary-text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        /* Info Tabs */
+        #info-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+        }
+
+        .tab-button {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: none;
+            color: var(--secondary-text-color);
+            cursor: pointer;
+            font-size: 1rem;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .tab-button.active {
+            color: var(--primary-text-color);
+            border-bottom: 3px solid var(--accent-color);
+        }
+
+        .tab-button:hover {
+            color: var(--primary-text-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        #educational-content {
+            padding: 2rem 4rem;
+            max-width: 1000px;
+            margin: 4rem auto;
+            background-color: var(--panel-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        #educational-content h2 {
+            font-size: 2.5rem;
+            border-top: 2px solid var(--border-color);
+            padding-top: 1.5rem;
+            margin-top: 3rem;
+        }
+        #educational-content h3 {
+            font-size: 1.8rem;
+            border: none;
+        }
+        #educational-content h4 {
+            font-size: 1.4rem;
+            color: var(--accent-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.2em;
+        }
+
+        #mexican-hat-canvas {
+            background-color: #010409;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            width: 100%;
+        }
+
+        code {
+            background-color: var(--input-bg-color);
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--accent-color);
+            padding-left: 1rem;
+            margin-left: 0;
+            color: var(--secondary-text-color);
+            font-style: italic;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            #app-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr auto;
+                grid-template-areas:
+                    "header"
+                    "main"
+                    "sidebar";
+                height: auto;
+            }
+            #sidebar {
+                height: auto;
+                overflow-y: visible;
+            }
+            #educational-content {
+                padding: 1rem;
+                margin: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <header id="header">
+            <h1>The Cosmic Forge: Kibble-Zurek Phase Transition Simulator</h1>
+        </header>
+
+        <main id="simulation-window">
+            <!-- Three.js canvas will be appended here by script -->
+        </main>
+
+        <aside id="sidebar">
+            <div id="controls-panel">
+                <h2>Controls</h2>
+                <div class="control-group">
+                    <label for="temp-slider">Master Universe Temperature (Log Scale)</label>
+                    <input type="range" id="temp-slider" name="temp-slider" min="1" max="20" value="20" step="0.1">
+                    <span id="temp-readout"></span>
+                    <p class="description">Slide down to initiate the phase transition below the critical temperature, T_c.</p>
+                </div>
+                <div class="control-group">
+                    <label for="cooling-slider">Cooling Rate (τ_Q)</label>
+                    <input type="range" id="cooling-slider" name="cooling-slider" min="0" max="100" value="50">
+                    <p class="description">Controls the speed of the quench. Slower (left) leads to larger domains and fewer defects.</p>
+                </div>
+                <div class="control-group">
+                    <label for="symmetry-select">Symmetry Group</label>
+                    <select id="symmetry-select" name="symmetry-select">
+                        <option value="Z2">Z₂ (Domain Walls)</option>
+                        <option value="U1" selected>U(1) (Cosmic Strings)</option>
+                        <option value="SO3">SO(3) (Monopoles)</option>
+                    </select>
+                </div>
+                 <div class="control-group">
+                    <label for="potential-slider">Potential Flatness</label>
+                    <input type="range" id="potential-slider" name="potential-slider" min="0" max="100" value="50" disabled>
+                    <p class="description">Adjusts the 'Mexican Hat' brim shape. (Feature to be implemented).</p>
+                </div>
+            </div>
+
+            <div id="info-container">
+                 <div id="info-tabs">
+                    <button class="tab-button active" data-tab="what-am-i-seeing">Live Commentary</button>
+                    <button class="tab-button" data-tab="quantitative">Analysis</button>
+                </div>
+                <div id="what-am-i-seeing" class="tab-content active">
+                    <h3>What Am I Seeing?</h3>
+                    <p id="live-commentary">Simulation has not started. Adjust temperature to begin.</p>
+                </div>
+                <div id="quantitative" class="tab-content">
+                    <h3>Quantitative Analysis</h3>
+                    <p><strong>Correlation Length (ξ):</strong> <span id="correlation-length">N/A</span></p>
+                    <p><strong>Defect Count:</strong> <span id="defect-count">N/A</span></p>
+                    <p><strong>Defect Density (n):</strong> <span id="defect-density">N/A</span></p>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <div id="educational-content">
+        <article>
+            <h2>A Universe in Your Browser: The Ultimate Guide</h2>
+            <p>Welcome to the Cosmic Forge. This simulation is more than just a screensaver; it's a window into one of the most profound ideas in modern physics: **spontaneous symmetry breaking** and the formation of **topological defects**. You are about to recreate moments from the first fractions of a second of the universe's existence, witnessing the birth of structures that may still be hiding in the cosmos today. This guide will walk you through everything you need to know, from the absolute basics to the frontiers of theoretical physics.</p>
+
+            <section>
+                <h3>Part 1: Beginner's Guide - A Freezing Lake and a Balanced Pencil</h3>
+                <p>Let's start with a simple idea. Imagine a vast, perfectly calm lake on a cold day. The water is uniform everywhere. You could move in any direction—north, south, east, west—and the water would look the same. This is a state of high **symmetry**. Now, the temperature drops. The lake begins to freeze. But it doesn't freeze all at once. Tiny ice crystals start forming in different places, each with its own random orientation. As these patches of ice grow and meet, they form jagged cracks and boundaries. The smooth, symmetric surface of the water is gone, replaced by a complex, "broken" pattern of ice. The cracks are permanent "scars" left over from the freezing process. They are, in essence, defects.</p>
+                <p>This simulation does the exact same thing, but for the entire universe. In its infancy, the universe was incredibly hot and filled with a uniform "soup" of energy fields. This was a symmetric state. As the universe expanded and cooled, it underwent a **phase transition**, much like water freezing into ice. The fundamental fields of nature had to "choose" a state, and different, causally disconnected regions of the universe chose differently. Where these regions met, the mismatch created defects: domain walls, cosmic strings, or monopoles. These are the "cracks" in the frozen fabric of spacetime.</p>
+                <blockquote>
+                    <strong>Core Analogy:</strong> The **Master Universe Temperature** slider is your thermostat. The **Cooling Rate** slider is how fast you turn the dial. A fast "quench" is like flash-freezing the lake, creating many small ice crystals and a dense network of cracks (defects). A slow, gentle cooling allows large, orderly crystals to form with very few cracks.
+                </blockquote>
+                <p>Another helpful analogy is balancing a pencil on its sharp tip. While it's perfectly balanced, there's a beautiful rotational symmetry—you can walk around it, and it looks the same from every angle. But this state is unstable. The slightest vibration will cause the pencil to fall. When it falls, it picks a random direction to point. The symmetry is now **spontaneously broken**. The underlying law of gravity is still symmetric, but the pencil's state is not. The universe's fields, in the hot early moments, were like the balanced pencil. As the universe cooled, they "fell" into a random, lower-energy state, breaking their original symmetry.</p>
+            </section>
+
+            <section>
+                <h2>Part 2: Core Theory - The Physics of Creation</h2>
+
+                <h4>Spontaneous Symmetry Breaking & The Scalar Field</h4>
+                <p>In physics, a "field" is a quantity that has a value at every point in space and time. A simple example is a temperature field in a room—every point has a temperature value. The simulations you are running involve a **scalar field**, which we can call by its Greek letter, phi (φ). A scalar field is the simplest kind, having only a magnitude at each point, no direction. The famous Higgs field, which gives elementary particles their mass, is a scalar field.</p>
+                <p>The behavior of this field is governed by its **potential energy**, denoted V(φ). Like a ball rolling on a hill, the field will always try to settle into the state with the lowest possible potential energy. This lowest-energy state is called the **vacuum state**. The key to symmetry breaking lies in the *shape* of this potential energy hill.</p>
+
+                <h4>The Interactive Mexican Hat Potential</h4>
+                <p>At very high temperatures, the potential energy of our scalar field looks like a simple bowl (a parabola). The lowest energy point is right at the bottom, where φ = 0. The field has no choice but to sit there. This is the symmetric state, as there's only one unique vacuum to choose.</p>
+                <p>However, as the universe cools below a critical temperature (T_c), the shape of the potential dramatically changes. It morphs into the famous **"Mexican Hat" potential**. The central point at φ = 0 is no longer the lowest energy state; it's now an unstable peak, like the balanced pencil tip. The lowest energy states now form a continuous circular trough—the "brim" of the hat. The field *must* roll off the peak and settle somewhere in this trough to minimize its energy. But where in the trough? There is no preferred direction. The choice is random. When the field picks a point in the trough, it has "chosen" a specific vacuum from an infinite number of possibilities. This choice spontaneously breaks the symmetry.</p>
+
+                <canvas id="mexican-hat-canvas" width="450" height="250"></canvas>
+                <blockquote>
+                    <strong>Interactive Element:</strong> The plot above shows the shape of the potential V(φ). Use the **Master Universe Temperature** slider in the main simulation. As you slide it down past the critical temperature (T_c ≈ 10), watch the potential morph from a simple bowl into the Mexican Hat. The red ball represents the state of the field, which is forced to "roll" into the brim, breaking the symmetry.
+                </blockquote>
+                <p>The mathematical form of this potential is typically given as <code>V(φ) = -1/2 * μ²(T) * φ² + 1/4 * λ * φ⁴</code>. The term μ² depends on temperature. At high T, μ² is negative, making the first term positive, resulting in a simple bowl. At low T, μ² becomes positive, creating the negative `φ²` term that forms the central peak and the `φ⁴` term that provides the upward-sloping sides.</p>
+
+                <h4>The Kibble-Zurek Mechanism: A Cosmic Race Against Time</h4>
+                <p>So, different regions of the universe choose different points in the bottom of the Mexican Hat. But how big are these regions? This is the central question the Kibble-Zurek mechanism answers. It all comes down to a race between two fundamental speeds:</p>
+                <ol>
+                    <li><strong>The Speed of Information (the speed of light, c):</strong> In the early universe, regions could only "know" about each other if a light signal had time to travel between them. The maximum size of a causally connected region is called the **horizon**.</li>
+                    <li><strong>The Speed of the Phase Transition (the cooling rate, τ_Q):</strong> This is how quickly the universe cools through its critical temperature. You control this with the **Cooling Rate** slider.</li>
+                </ol>
+                <p>As the universe cools, there's a point where the timescale of the cooling becomes faster than the time it takes for different regions to communicate and agree on a single vacuum state. At this moment, the universe "freezes" into a mosaic of independent domains. The typical size of these domains, called the **correlation length (ξ)**, is set by the state of the universe at this freeze-out time. The Kibble-Zurek mechanism provides a powerful prediction: the faster the quench (smaller τ_Q), the smaller the correlation length (ξ), and therefore the more defects are formed at the boundaries of these numerous small domains. The density of defects `n` is predicted to follow a power law: <code>n ∝ 1/ξᵈ ∝ (1/τ_Q)^σ</code>, where `d` is the dimension and `σ` is a "critical exponent" that depends on the physics of the transition.</p>
+            </section>
+
+            <section>
+                <h2>Part 3: A Bestiary of Cosmic Defects - Topology for Beginners</h2>
+                <p>The type of defect formed depends entirely on the **topology** of the vacuum manifold—the shape of the bottom of the potential. Think of it like this: if you have a set of possible "choices," what kind of "knots" can you form if different regions make different choices?</p>
+
+                <h4>Z₂ Symmetry → Domain Walls (Dimension 2)</h4>
+                <p>This is the simplest case. The vacuum has only two choices, like a switch that can be "on" or "off" (or +1 and -1). This is called a **Z₂ symmetry**. Imagine huge regions of the universe where the field chose "+1" meeting regions that chose "-1". The boundary between them is a 2-dimensional surface called a **domain wall**. These walls contain immense energy (they are, after all, places where the field is not in its true vacuum state). A single, stable domain wall stretching across the observable universe today would contain so much mass that it would completely dominate all the galaxies combined. The fact that we don't observe this is strong evidence that either simple Z₂ symmetries were not broken in this way, or the process of cosmic inflation expanded the universe so much that any walls were pushed far beyond our horizon.</p>
+                <blockquote><strong>In the simulation:</strong> Select **Z₂**. The two vacuum states are represented by red and blue. The domain walls are the 2D surfaces where red and blue regions meet.</blockquote>
+
+                <h4>U(1) Symmetry → Cosmic Strings (Dimension 1)</h4>
+                <p>This is the case for the classic Mexican Hat potential. The vacuum manifold is a circle. The field can choose any phase angle from 0 to 2π, like the direction a compass needle can point. This is **U(1) symmetry**. Now, imagine walking in a large loop in space. At every point, you check the direction of the "compass needle" (the phase of the field). If, after completing your loop, you find that the needle has spun around a full 360 degrees, then your path *must* have enclosed a point where the phase is undefined—a singularity. In 3D space, this point of singularity is actually a continuous 1-dimensional line, a **cosmic string**.</p>
+                <p>These strings are incredibly thin but unimaginably dense, containing the energy of a grand unified theory scale. They are topologically stable: you can't get rid of the "twist" in the field without cutting the string. They would have profound gravitational effects, such as bending light (gravitational lensing) or creating tiny fluctuations in the Cosmic Microwave Background. Searches for these signatures are ongoing.</p>
+                <blockquote><strong>In the simulation:</strong> Select **U(1)**. The phase is represented by the color wheel. A cosmic string is a line where all colors of the wheel converge. The simulation counts these by checking for this "winding" of the phase around elementary loops.</blockquote>
+
+                <h4>SO(3) Symmetry → Monopoles (Dimension 0)</h4>
+                <p>What if the vacuum manifold is not a circle, but the surface of a sphere? This corresponds to a more complex symmetry group, **SO(3)**. The field at every point in space must choose a direction, not on a circle, but on a sphere. This is like every point in space having a little 3D arrow attached to it.</p>
+                <p>Now, imagine a point in space where the surrounding field vectors are arranged like the spines of a hedgehog—all pointing directly away from the center. If you were to draw a spherical surface around this central point, you would find that the field vectors on your surface perfectly "wrap" the vacuum manifold sphere. This configuration is a **monopole**. It is a stable, point-like (0-dimensional) defect. You cannot smooth out this "hedgehog" pattern without tearing the fabric of the field. These objects would behave like isolated north or south magnetic poles (hence "monopole"), something never observed in nature (magnets always come with both a north and a south pole). The predicted abundance of monopoles from early universe phase transitions was so high it became a major theoretical crisis, known as the **monopole problem**, which was one of the primary motivations for the theory of cosmic inflation.</p>
+                <blockquote><strong>In the simulation:</strong> Select **SO(3)**. The field is represented by a 3D vector at each point (visualized by color-coding the cube based on the vector's direction). A monopole is a point-like defect where the surrounding vectors create a "hedgehog" pattern. The simulation finds these by calculating the topological "charge" inside each elementary cube and places a yellow marker on any cube containing a monopole.</blockquote>
+            </section>
+
+            <section>
+                <h2>Part 4: Deep Q&A</h2>
+                <ol>
+                    <li><strong>Why is the cooling rate `τ_Q` so important? Couldn't the universe just settle into the true vacuum eventually?</strong><br/>This is a fantastic question that gets to the heart of the mechanism. The universe could indeed try to settle, but it's a race against its own expansion and cooling. The "defects" are not just mistakes; they are topologically stable configurations. A loop of cosmic string, for example, cannot simply vanish. It can only shrink and annihilate itself if it's not tangled with other strings. A domain wall would need to an entire half of the universe to flip its vacuum choice, which is energetically impossible. The defects get "locked in" because the energy required to undo them (to go back over the central "hump" of the Mexican Hat) becomes unavailable as the universe cools. The cooling rate `τ_Q` sets the initial density of these locked-in defects. A very fast rate provides very little time for domains to negotiate, leading to a very messy initial state with a high density of defects that are then frozen into the fabric of spacetime.</li>
+
+                    <li><strong>The simulation shows defects, but do we have any evidence they are real?</strong><br/>Currently, there is no definitive, universally accepted detection of a cosmological defect. However, there are tantalizing hints and active areas of research. For cosmic strings, astronomers search for their gravitational lensing signatures—a string passing in front of a distant galaxy would produce a very specific double image. They also search for patterns of anisotropies (hot and cold spots) in the Cosmic Microwave Background (CMB) that could have been seeded by strings. For monopoles, experiments like the proposed MOEDAL at the LHC are designed to detect them if they are produced in high-energy collisions. The lack of observation so far has placed very strong constraints on theories, suggesting that if defects were formed, it was likely before a period of cosmic inflation that diluted their density to near zero in our observable patch of the universe.</li>
+
+                    <li><strong>What are the units of the scalar field `φ` and its potential `V(φ)`?</strong><br/>In high-energy physics, it's common to use a system of "natural units" where the speed of light `c` and the reduced Planck constant `ħ` are set to 1. In this system, mass and energy have the same units (usually expressed in electron-volts, or eV). Length and time have units of inverse energy. A scalar field like `φ` in 3+1 dimensions has units of energy (e.g., Giga-electron-volts, or GeV). The potential energy `V(φ)`, which is actually an energy *density*, has units of energy⁴ (e.g., GeV⁴). Let's check the Mexican Hat potential: `V(φ) = -μ²φ² + λφ⁴`. The coupling `λ` is dimensionless. For the units to match, if `V` is GeV⁴ and `φ` is GeV, then `λφ⁴` gives GeV⁴. This works. The term `μ²φ²` must also be GeV⁴, which means `μ²` must have units of GeV². This means `μ` is a mass term, often considered the mass of the field's quantum excitation (like the Higgs boson).</li>
+
+                    <li><strong>The prompt mentions "first-order" vs "second-order" phase transitions. What is the difference and what is this simulation showing?</strong><br/>This simulation shows a **second-order** phase transition. In a second-order transition, the state of the system changes continuously. The field smoothly starts to acquire a non-zero value as the temperature drops below T_c. Think of a ferromagnet losing its magnetism as it's heated; the net magnetization smoothly goes to zero at the Curie temperature. A **first-order** transition is more violent and involves a discontinuity. Think of boiling water: at 100°C, you have a state of liquid water and a state of steam co-existing. It requires a certain amount of energy (the latent heat) to jump from the liquid to the gas state. In cosmology, a first-order transition would proceed through **bubble nucleation**. Pockets of the new, true vacuum would spontaneously appear and rapidly expand at nearly the speed of light, like bubbles in boiling water. The defects would then be formed in the violent collisions between these bubble walls. To simulate this, the potential V(φ) would need an energy barrier between the old vacuum (at φ=0) and the new one, preventing a smooth transition.</li>
+
+                    <li><strong>How does the expansion of the universe affect the defects after they form?</strong><br/>The expansion has a profound effect. The universe is not a static box; the grid itself should be stretching. This stretching is described by the scale factor, a(t). The energy density of different components of the universe dilutes differently with expansion. The energy in radiation dilutes as 1/a(t)⁴, matter as 1/a(t)³, but defects are different. The energy of a network of cosmic strings is proportional to its length per unit volume. As the universe expands, the strings are stretched, and their length per *comoving* volume remains roughly constant. This means their energy density dilutes as 1/a(t)², much slower than matter or radiation. A network of domain walls would be even more extreme: their energy density would dilute as 1/a(t), meaning they would very quickly come to dominate the entire energy budget of the universe. This "domain wall problem" is another strong reason to believe that simple, stable domain walls cannot exist on cosmological scales.</li>
+
+                    <li><strong>Why is a `U(1)` symmetry related to a circle and `SO(3)` to a sphere?</strong><br/>This comes from group theory. `U(1)` is the group of 1x1 unitary complex matrices. A complex number on the unit circle can be written as `z = e^(iθ)`. Multiplying by another such number is equivalent to adding their angles (`e^(iθ₁) * e^(iθ₂) = e^(i(θ₁+θ₂))`). This group of transformations is geometrically equivalent to the group of rotations in 2D, whose elements (the angles from 0 to 2π) form a circle. `SO(3)` is the special orthogonal group in 3 dimensions, which is the group of all rotations about the origin in 3D space. The set of all possible "orientations" or "directions" in 3D can be mapped to the surface of a unit sphere. So, the vacuum manifold (the set of choices) for a field with SO(3) symmetry has the topology of a sphere.</li>
+
+                    <li><strong>Can you give a numeric example of the correlation length calculation?</strong><br/>Certainly. In the simulation, the cooling rate slider goes from 0 (slowest) to 100 (fastest). Let's say our grid size is 16, so the largest possible domain size (`max_xi`) is 8, and we set the smallest (`min_xi`) to 2. The code maps the slider value to the correlation length `ξ`. The formula used is: `xi = min_xi + ((100 - cooling_val) / 100) * (max_xi - min_xi)`.
+                        <ul>
+                            <li><strong>Slow Quench:</strong> User sets slider to 10. `cooling_val` = 10.
+                            `xi = 2 + ((100 - 10) / 100) * (8 - 2) = 2 + (0.9) * 6 = 2 + 5.4 = 7.4`. The domains will be, on average, ~7.4 grid units across.</li>
+                            <li><strong>Fast Quench:</strong> User sets slider to 90. `cooling_val` = 90.
+                            `xi = 2 + ((100 - 90) / 100) * (8 - 2) = 2 + (0.1) * 6 = 2 + 0.6 = 2.6`. The domains will be tiny, only ~2.6 grid units across, leading to a much higher density of defects.</li>
+                        </ul>
+                    </li>
+
+                    <li><strong>Why does the monopole calculation involve a "solid angle"? What is that?</strong><br/>A regular angle measures a portion of a 1D line (a circle's circumference). A **solid angle** is the 2D extension of this concept to 3D space. It measures how large an object appears to an observer at a certain point. Imagine standing inside a sphere and looking at an object; the solid angle is the area of the object's projection onto the sphere's surface, divided by the sphere's radius squared. It's measured in steradians. The entire sphere corresponds to a solid angle of 4π steradians. The calculation for the monopole's topological charge works by seeing how the field vectors on the surface of a small cube in our simulation "map" onto the spherical vacuum manifold. If the vectors on the cube's surface wrap completely around the vacuum sphere one time, the total solid angle will be 4π, and the charge will be 4π / 4π = 1. This signals a trapped monopole.</li>
+
+                    <li><strong>Are the defects animated? Do they move or annihilate?</strong><br/>In this specific simulation, no. This model is a simplified "snapshot" based on the cellular automaton approach of the Kibble-Zurek mechanism. It calculates the *initial* density of defects formed at the phase transition. A more advanced simulation, based on evolving the Ginzburg-Landau field equations, would show the subsequent evolution. In such a simulation, you would see cosmic string loops oscillating, shrinking, and eventually annihilating into radiation. You would see monopole-antimonopole pairs being pulled together by the field's tension, eventually colliding and annihilating. The network of defects would dynamically evolve towards a simpler, lower-energy state, a process known as "scaling."</li>
+
+                    <li><strong>Why do we need a scalar field? Can't other fields, like the electromagnetic field, do this?</strong><br/>This is a very deep question. The key is the "spontaneous" part of the symmetry breaking. The electromagnetic field is described by a vector (a massless photon), and its `U(1)` symmetry is exact, not spontaneously broken. To have spontaneous symmetry breaking, you typically need a fundamental **scalar field** whose potential energy has that special "Mexican Hat" shape. When this scalar field acquires a non-zero value in the vacuum (it "rolls down into the brim"), it can give mass to other particles and break symmetries. The Standard Model of particle physics relies on this exact idea: the Higgs field is a scalar field that spontaneously breaks the electroweak symmetry, giving mass to the W and Z bosons while leaving the photon (of electromagnetism) massless. The formation of topological defects is a natural, almost unavoidable, consequence of this type of mechanism being at play in the early universe.</li>
+                </ol>
+            </section>
+        </article>
+    </div>
+
+    <!-- Import Map for three.js modules -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <!-- Main simulation script -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- DOM Elements ---
+        const simWindow = document.getElementById('simulation-window');
+        const tabs = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        // --- Three.js Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        const camera = new THREE.PerspectiveCamera(75, simWindow.clientWidth / simWindow.clientHeight, 0.1, 1000);
+        camera.position.z = 15;
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(simWindow.clientWidth, simWindow.clientHeight);
+        simWindow.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        directionalLight.position.set(5, 10, 7.5);
+        scene.add(directionalLight);
+
+        // --- Simulation State & Parameters ---
+        const SIM_GLOBALS = {
+            GRID_SIZE: 16,
+            BOX_SIZE: 0.4,
+            GRID_SPACING: 0.7,
+            SYMMETRY: 'U1', // Default symmetry
+        };
+        let field = [];
+        let vizObjects = [];
+        const gridGroup = new THREE.Group();
+        scene.add(gridGroup);
+
+        /**
+         * Creates and initializes the 3D grid for the simulation.
+         */
+        function createGrid() {
+            // Clear previous grid if any
+            defectGroup.clear();
+            gridGroup.clear();
+            field = [];
+            vizObjects = [];
+
+            const geometry = new THREE.BoxGeometry(SIM_GLOBALS.BOX_SIZE, SIM_GLOBALS.BOX_SIZE, SIM_GLOBALS.BOX_SIZE);
+            const halfGridWidth = (SIM_GLOBALS.GRID_SIZE * SIM_GLOBALS.GRID_SPACING) / 2;
+
+            for (let x = 0; x < SIM_GLOBALS.GRID_SIZE; x++) {
+                field[x] = [];
+                vizObjects[x] = [];
+                for (let y = 0; y < SIM_GLOBALS.GRID_SIZE; y++) {
+                    field[x][y] = [];
+                    vizObjects[x][y] = [];
+                    for (let z = 0; z < SIM_GLOBALS.GRID_SIZE; z++) {
+                        // Default material for the hot, symmetric state
+                        const material = new THREE.MeshStandardMaterial({
+                            color: 0xaaaaaa,
+                            transparent: true,
+                            opacity: 0.15
+                        });
+
+                        const box = new THREE.Mesh(geometry, material);
+
+                        box.position.set(
+                            x * SIM_GLOBALS.GRID_SPACING - halfGridWidth,
+                            y * SIM_GLOBALS.GRID_SPACING - halfGridWidth,
+                            z * SIM_GLOBALS.GRID_SPACING - halfGridWidth
+                        );
+
+                        gridGroup.add(box);
+
+                        field[x][y][z] = null; // Represents symmetric state
+                        vizObjects[x][y][z] = box;
+                    }
+                }
+            }
+        }
+
+        // --- UI Elements ---
+        const tempSlider = document.getElementById('temp-slider');
+        const coolingSlider = document.getElementById('cooling-slider');
+        const symmetrySelect = document.getElementById('symmetry-select');
+        const commentaryEl = document.getElementById('live-commentary');
+        const correlationLengthEl = document.getElementById('correlation-length');
+        const mexicanHatCanvas = document.getElementById('mexican-hat-canvas');
+        const tempReadout = document.getElementById('temp-readout');
+
+        // --- Simulation Logic ---
+
+        // Add initial values to globals
+        SIM_GLOBALS.TEMP = parseFloat(tempSlider.value);
+        SIM_GLOBALS.COOLING_RATE = parseFloat(coolingSlider.value);
+        SIM_GLOBALS.SYMMETRY = symmetrySelect.value;
+        SIM_GLOBALS.CRITICAL_TEMP = 10;
+        SIM_GLOBALS.IS_FROZEN = false;
+        SIM_GLOBALS.hat_ball_pos_chosen = false;
+        SIM_GLOBALS.hat_ball_pos = 1;
+
+
+        function updateSimulation() {
+            const temp = SIM_GLOBALS.TEMP;
+
+            if (temp > SIM_GLOBALS.CRITICAL_TEMP) {
+                if (SIM_GLOBALS.IS_FROZEN) {
+                    resetSimulation();
+                }
+                commentaryEl.textContent = "The universe is hot and symmetric. The scalar field is fluctuating wildly. No stable structures can form.";
+            } else {
+                if (!SIM_GLOBALS.IS_FROZEN) {
+                    commentaryEl.textContent = "Temperature is below critical point! Patches of the universe are choosing a ground state...";
+                    runPhaseTransition();
+                    SIM_GLOBALS.IS_FROZEN = true;
+                    setTimeout(() => {
+                        commentaryEl.textContent = "Phase transition complete. The colored regions are 'frozen'. Defects form at the boundaries where regions meet.";
+                    }, 100);
+                }
+            }
+        }
+
+        function resetSimulation() {
+            SIM_GLOBALS.IS_FROZEN = false;
+            correlationLengthEl.textContent = 'N/A';
+            document.getElementById('defect-count').textContent = 'N/A';
+            document.getElementById('defect-density').textContent = 'N/A';
+            defectGroup.clear();
+
+            for (let x = 0; x < SIM_GLOBALS.GRID_SIZE; x++) {
+                for (let y = 0; y < SIM_GLOBALS.GRID_SIZE; y++) {
+                    for (let z = 0; z < SIM_GLOBALS.GRID_SIZE; z++) {
+                        field[x][y][z] = null;
+                        const obj = vizObjects[x][y][z];
+                        if (obj.isMesh) {
+                            obj.material.color.set(0xaaaaaa);
+                            obj.material.opacity = 0.15;
+                            obj.material.transparent = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        const defectGroup = new THREE.Group();
+        scene.add(defectGroup);
+
+        function runPhaseTransition() {
+            // 1. Calculate correlation length (xi) from cooling rate
+            const coolingVal = SIM_GLOBALS.COOLING_RATE; // 0-100 (0=slow, 100=fast)
+            const minXi = 2;
+            const maxXi = SIM_GLOBALS.GRID_SIZE / 2;
+            const invertedCooling = 100 - coolingVal; // Now 100 is slow, 0 is fast
+            const xi = minXi + (invertedCooling / 100) * (maxXi - minXi);
+            correlationLengthEl.textContent = `${xi.toFixed(2)} (grid units)`;
+
+            // 2. Form domains using a Voronoi-seed-like approach
+            const seeds = [];
+            const numDomains = Math.ceil(Math.pow(SIM_GLOBALS.GRID_SIZE / xi, 3));
+            for (let i = 0; i < numDomains * 1.5; i++) { // Oversample seeds slightly
+                seeds.push({
+                    x: Math.random() * SIM_GLOBALS.GRID_SIZE,
+                    y: Math.random() * SIM_GLOBALS.GRID_SIZE,
+                    z: Math.random() * SIM_GLOBALS.GRID_SIZE,
+                    value: getRandomGroundState()
+                });
+            }
+
+            for (let x = 0; x < SIM_GLOBALS.GRID_SIZE; x++) {
+                for (let y = 0; y < SIM_GLOBALS.GRID_SIZE; y++) {
+                    for (let z = 0; z < SIM_GLOBALS.GRID_SIZE; z++) {
+                        let closestSeed = null;
+                        let min_dist_sq = Infinity;
+                        for (const seed of seeds) {
+                            const dist_sq = Math.pow(x - seed.x, 2) + Math.pow(y - seed.y, 2) + Math.pow(z - seed.z, 2);
+                            if (dist_sq < min_dist_sq) {
+                                min_dist_sq = dist_sq;
+                                closestSeed = seed;
+                            }
+                        }
+                        field[x][y][z] = closestSeed.value;
+                    }
+                }
+            }
+
+            // 3. Update visualization based on the new field state
+            updateVisualization();
+
+            // 4. Analyze the resulting field for defects
+            analyzeAndVisualizeDefects();
+        }
+
+        function analyzeAndVisualizeDefects() {
+            let count = 0;
+            let density = 0;
+            const volume = Math.pow(SIM_GLOBALS.GRID_SIZE, 3);
+
+            defectGroup.clear(); // Clear previous defects
+
+            switch(SIM_GLOBALS.SYMMETRY) {
+                case 'Z2':
+                    count = findDomainWalls();
+                    break;
+                case 'U1':
+                    count = findCosmicStrings();
+                    break;
+                case 'SO3':
+                    count = findMonopoles();
+                    break;
+            }
+
+            density = count / volume;
+
+            document.getElementById('defect-count').textContent = `${count.toFixed(0)} (raw units)`;
+            document.getElementById('defect-density').textContent = `${density.toExponential(2)}`;
+        }
+
+        function findDomainWalls() {
+            let wallArea = 0;
+            const size = SIM_GLOBALS.GRID_SIZE;
+            for (let x = 0; x < size; x++) {
+                for (let y = 0; y < size; y++) {
+                    for (let z = 0; z < size; z++) {
+                        const val = field[x][y][z];
+                        if (x + 1 < size && val !== field[x+1][y][z]) wallArea++;
+                        if (y + 1 < size && val !== field[x][y+1][z]) wallArea++;
+                        if (z + 1 < size && val !== field[x][y][z+1]) wallArea++;
+                    }
+                }
+            }
+            return wallArea;
+        }
+
+        function wrapPhase(angle) {
+            const PI2 = Math.PI * 2;
+            return ((angle + Math.PI) % PI2 + PI2) % PI2 - Math.PI;
+        }
+
+        function findCosmicStrings() {
+            let stringLength = 0;
+            const PI2 = Math.PI * 2;
+            const size = SIM_GLOBALS.GRID_SIZE;
+            const getPhase = (x, y, z) => field[x % size][y % size][z % size];
+
+            for (let x = 0; x < size; x++) {
+                for (let y = 0; y < size; y++) {
+                    for (let z = 0; z < size; z++) {
+                        // XY plaquette
+                        let p1 = getPhase(x,y,z), p2 = getPhase(x+1,y,z), p3 = getPhase(x+1,y+1,z), p4 = getPhase(x,y+1,z);
+                        let winding = wrapPhase(p2-p1) + wrapPhase(p3-p2) + wrapPhase(p4-p3) + wrapPhase(p1-p4);
+                        if (Math.abs(Math.round(winding / PI2)) === 1) stringLength++;
+
+                        // YZ plaquette
+                        p1 = getPhase(x,y,z), p2 = getPhase(x,y+1,z), p3 = getPhase(x,y+1,z+1), p4 = getPhase(x,y,z+1);
+                        winding = wrapPhase(p2-p1) + wrapPhase(p3-p2) + wrapPhase(p4-p3) + wrapPhase(p1-p4);
+                        if (Math.abs(Math.round(winding / PI2)) === 1) stringLength++;
+
+                        // XZ plaquette
+                        p1 = getPhase(x,y,z), p2 = getPhase(x+1,y,z), p3 = getPhase(x+1,y,z+1), p4 = getPhase(x,y,z+1);
+                        winding = wrapPhase(p2-p1) + wrapPhase(p3-p2) + wrapPhase(p4-p3) + wrapPhase(p1-p4);
+                        if (Math.abs(Math.round(winding / PI2)) === 1) stringLength++;
+                    }
+                }
+            }
+            return stringLength;
+        }
+
+        function getSolidAngle(vA, vB, vC) {
+            const numer = vA.dot(vB.clone().cross(vC));
+            const denom = 1 + vA.dot(vB) + vB.dot(vC) + vC.dot(vA);
+            if (denom === 0) return 0;
+            return 2 * Math.atan2(numer, denom);
+        }
+
+        function findMonopoles() {
+            let monopoleCount = 0;
+            const size = SIM_GLOBALS.GRID_SIZE;
+            const getVec = (x, y, z) => field[x % size][y % size][z % size];
+
+            for (let x = 0; x < size; x++) {
+                for (let y = 0; y < size; y++) {
+                    for (let z = 0; z < size; z++) {
+                        const v = [
+                            getVec(x,y,z), getVec(x+1,y,z), getVec(x+1,y+1,z), getVec(x,y+1,z),
+                            getVec(x,y,z+1), getVec(x+1,y,z+1), getVec(x+1,y+1,z+1), getVec(x,y+1,z+1)
+                        ];
+
+                        let totalSolidAngle = 0;
+                        totalSolidAngle += getSolidAngle(v[0], v[1], v[2]); totalSolidAngle += getSolidAngle(v[0], v[2], v[3]);
+                        totalSolidAngle += getSolidAngle(v[4], v[7], v[6]); totalSolidAngle += getSolidAngle(v[4], v[6], v[5]);
+                        totalSolidAngle += getSolidAngle(v[0], v[4], v[5]); totalSolidAngle += getSolidAngle(v[0], v[5], v[1]);
+                        totalSolidAngle += getSolidAngle(v[3], v[2], v[6]); totalSolidAngle += getSolidAngle(v[3], v[6], v[7]);
+                        totalSolidAngle += getSolidAngle(v[0], v[3], v[7]); totalSolidAngle += getSolidAngle(v[0], v[7], v[4]);
+                        totalSolidAngle += getSolidAngle(v[1], v[5], v[6]); totalSolidAngle += getSolidAngle(v[1], v[6], v[2]);
+
+                        const charge = -totalSolidAngle / (4 * Math.PI); // Sign convention
+                        const intCharge = Math.round(charge);
+
+                        if (Math.abs(intCharge) === 1) {
+                            monopoleCount += Math.abs(intCharge);
+                            const monopoleGeom = new THREE.SphereGeometry(0.3, 16, 8);
+                            const monopoleMat = new THREE.MeshStandardMaterial({ color: 0xffff00, emissive: 0xccaa00 });
+                            const marker = new THREE.Mesh(monopoleGeom, monopoleMat);
+                            const pos = vizObjects[x][y][z].position;
+                            marker.position.set(pos.x + SIM_GLOBALS.GRID_SPACING/2, pos.y + SIM_GLOBALS.GRID_SPACING/2, pos.z + SIM_GLOBALS.GRID_SPACING/2);
+                            defectGroup.add(marker);
+                        }
+                    }
+                }
+            }
+            return monopoleCount;
+        }
+
+        function getRandomGroundState() {
+            switch(SIM_GLOBALS.SYMMETRY) {
+                case 'Z2':
+                    return (Math.random() > 0.5) ? 1 : -1;
+                case 'U1':
+                    return Math.random() * 2 * Math.PI;
+                case 'SO3':
+                    let u, v, s;
+                    do {
+                        u = Math.random() * 2 - 1;
+                        v = Math.random() * 2 - 1;
+                        s = u * u + v * v;
+                    } while (s >= 1 || s === 0);
+                    const mult = 2 * Math.sqrt(1 - s);
+                    return new THREE.Vector3(u * mult, v * mult, 1 - 2 * s).normalize();
+            }
+        }
+
+        function updateVisualization() {
+            const tempColor = new THREE.Color();
+            for (let x = 0; x < SIM_GLOBALS.GRID_SIZE; x++) {
+                for (let y = 0; y < SIM_GLOBALS.GRID_SIZE; y++) {
+                    for (let z = 0; z < SIM_GLOBALS.GRID_SIZE; z++) {
+                        const value = field[x][y][z];
+                        const obj = vizObjects[x][y][z];
+                        if (value === null) continue;
+
+                        obj.material.transparent = false;
+                        obj.material.opacity = 1.0;
+
+                        switch(SIM_GLOBALS.SYMMETRY) {
+                            case 'Z2':
+                                obj.material.color.set(value === 1 ? '#e63946' : '#1d3557');
+                                break;
+                            case 'U1':
+                                tempColor.setHSL(value / (2 * Math.PI), 0.9, 0.55);
+                                obj.material.color.copy(tempColor);
+                                break;
+                            case 'SO3':
+                                // Color by vector direction. Map (x,y,z) to (r,g,b)
+                                obj.material.color.setRGB(
+                                    (value.x + 1) / 2,
+                                    (value.y + 1) / 2,
+                                    (value.z + 1) / 2
+                                );
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+
+        function resetAndRun() {
+            resetSimulation();
+            updateSimulation();
+        }
+
+        function drawMexicanHat() {
+            const ctx = mexicanHatCanvas.getContext('2d');
+            const width = mexicanHatCanvas.width;
+            const height = mexicanHatCanvas.height;
+            const temp = SIM_GLOBALS.TEMP;
+            const Tc = SIM_GLOBALS.CRITICAL_TEMP;
+
+            const lambda = 0.1;
+            const eta_sq = 100;
+            const T_factor = 1 - (temp / Tc);
+            const mu_sq = eta_sq * T_factor;
+
+            ctx.fillStyle = '#010409';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, height / 1.5);
+            ctx.lineTo(width, height / 1.5);
+            ctx.moveTo(width / 2, 20);
+            ctx.lineTo(width / 2, height - 20);
+            ctx.stroke();
+
+            ctx.strokeStyle = 'var(--accent-color)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < width; i++) {
+                const phi = (i - width / 2) / (width/10);
+                const V = -0.5 * mu_sq * phi*phi + 0.25 * lambda * Math.pow(phi, 4);
+                const y = height / 1.5 - V / 50;
+                if (i === 0) ctx.moveTo(i, y);
+                else ctx.lineTo(i, y);
+            }
+            ctx.stroke();
+
+            let ball_phi = 0;
+            if (T_factor > 0) {
+                ball_phi = Math.sqrt(mu_sq / lambda);
+                if(!SIM_GLOBALS.hat_ball_pos_chosen) {
+                    SIM_GLOBALS.hat_ball_pos = (Math.random() > 0.5) ? 1 : -1;
+                    SIM_GLOBALS.hat_ball_pos_chosen = true;
+                }
+                ball_phi *= SIM_GLOBALS.hat_ball_pos;
+            } else {
+                 SIM_GLOBALS.hat_ball_pos_chosen = false;
+            }
+
+            const ball_V = -0.5 * mu_sq * ball_phi*ball_phi + 0.25 * lambda * Math.pow(ball_phi, 4);
+            const ball_x = ball_phi * (width/10) + width/2;
+            const ball_y = height / 1.5 - ball_V / 50;
+
+            ctx.fillStyle = '#e63946';
+            ctx.beginPath();
+            ctx.arc(ball_x, ball_y, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        // --- UI Event Listeners ---
+        tempSlider.addEventListener('input', (e) => {
+            SIM_GLOBALS.TEMP = parseFloat(e.target.value);
+            const T_display = Math.pow(10, SIM_GLOBALS.TEMP).toExponential(1);
+            tempReadout.textContent = `= ${T_display} GeV`;
+            updateSimulation();
+            drawMexicanHat();
+        });
+
+        coolingSlider.addEventListener('input', (e) => {
+            SIM_GLOBALS.COOLING_RATE = parseFloat(e.target.value);
+        });
+        coolingSlider.addEventListener('change', () => { // 'change' fires when user releases mouse
+             if (SIM_GLOBALS.IS_FROZEN) resetAndRun();
+        });
+
+
+        symmetrySelect.addEventListener('change', (e) => {
+            SIM_GLOBALS.SYMMETRY = e.target.value;
+            createGrid(); // Recreate grid in case we need different objects (e.g. arrows)
+            resetAndRun();
+        });
+
+        // --- Initial Setup ---
+        createGrid();
+        drawMexicanHat();
+        tempReadout.textContent = `= ${Math.pow(10, SIM_GLOBALS.TEMP).toExponential(1)} GeV`;
+
+        // --- Resize Handling ---
+        const resizeObserver = new ResizeObserver(entries => {
+            const entry = entries[0];
+            const { width, height } = entry.contentRect;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        });
+        resizeObserver.observe(simWindow);
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // Update controls on each frame
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // --- UI Logic ---
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Deactivate all tabs and content
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+
+                // Activate clicked tab and its content
+                tab.classList.add('active');
+                const targetContentId = tab.getAttribute('data-tab');
+                document.getElementById(targetContentId).classList.add('active');
+            });
+        });
+
+    </script>
+
+</body>
+</html>
