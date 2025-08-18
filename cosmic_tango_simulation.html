@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Tango - Defect Interaction Simulator</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --primary-text-color: #c9d1d9;
+            --secondary-text-color: #8b949e;
+            --border-color: #30363d;
+            --accent-color: #58a6ff;
+            --panel-bg-color: #161b22;
+            --input-bg-color: #010409;
+        }
+        body {
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--primary-text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            line-height: 1.6;
+        }
+        #app-container {
+            display: grid;
+            grid-template-columns: 1fr 450px;
+            grid-template-rows: auto 1fr;
+            grid-template-areas:
+                "header header"
+                "main   sidebar";
+            height: 95vh;
+            gap: 1rem;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        h1, h2, h3 {
+            color: var(--primary-text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3em;
+            font-weight: 600;
+        }
+        #header { grid-area: header; text-align: center; }
+        #header h1 { margin: 0; border: none; }
+        #simulation-window {
+            grid-area: main;
+            background-color: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        #simulation-window canvas { display: block; }
+        #sidebar {
+            grid-area: sidebar;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        .panel {
+            background-color: var(--panel-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+        }
+        .control-group { margin-bottom: 1.5rem; }
+        .control-group label { display: block; font-weight: 500; margin-bottom: 0.5rem; }
+        .control-group .description { font-size: 0.85rem; color: var(--secondary-text-color); margin-bottom: 0.5rem; }
+        .control-group span { font-size: 0.9rem; color: var(--accent-color); margin-left: 0.5rem; }
+        button, select {
+            width: 100%;
+            padding: 0.5rem;
+            background-color: var(--input-bg-color);
+            color: var(--primary-text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button:hover { background-color: #30363d; }
+        .button-group { display: flex; gap: 0.5rem; }
+        input[type="range"] {
+            width: 100%;
+            -webkit-appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-runnable-track { height: 5px; background: #333; border-radius: 5px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 18px; width: 18px; background: var(--accent-color); border-radius: 50%; margin-top: -6.5px; }
+
+        #educational-content {
+            padding: 2rem 4rem;
+            max-width: 1000px;
+            margin: 4rem auto;
+        }
+        #educational-content h2 { font-size: 2.5rem; border-top: 2px solid var(--border-color); padding-top: 1.5rem; margin-top: 3rem; }
+        #educational-content h3 { font-size: 1.8rem; border: none; }
+        #educational-content h4 { font-size: 1.4rem; color: var(--accent-color); border-bottom: 1px solid var(--border-color); padding-bottom: 0.2em; }
+        code { background-color: var(--input-bg-color); padding: 0.2em 0.4em; border-radius: 4px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+        blockquote { border-left: 4px solid var(--accent-color); padding-left: 1rem; margin-left: 0; color: var(--secondary-text-color); font-style: italic; }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <header id="header">
+            <h1>Cosmic Tango: Defect Interaction Simulator</h1>
+        </header>
+
+        <main id="simulation-window"></main>
+
+        <aside id="sidebar">
+            <div id="controls-panel" class="panel">
+                <h2>Controls</h2>
+                <div class="control-group button-group">
+                    <button id="start-sim-btn">Start Simulation</button>
+                    <button id="pause-sim-btn">Pause</button>
+                    <button id="reset-sim-btn">Reset</button>
+                </div>
+                <div class="control-group">
+                    <label>Initial Conditions</label>
+                    <div class="button-group">
+                         <button id="create-pair-btn">Create Pair</button>
+                         <button id="create-network-btn">Random Network</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label for="friction-slider">Universe Friction (Hubble Drag)</label>
+                    <input type="range" id="friction-slider" min="0" max="0.2" value="0.05" step="0.005">
+                    <span id="friction-readout">0.050</span>
+                    <p class="description">Controls how quickly motion is dampened by cosmic expansion.</p>
+                </div>
+                <div class="control-group">
+                    <label for="tension-slider">String Tension (μ)</label>
+                    <input type="range" id="tension-slider" min="0.1" max="5.0" value="1.0" step="0.1">
+                    <span id="tension-readout">1.0</span>
+                    <p class="description">How forcefully strings try to straighten themselves.</p>
+                </div>
+                <div class="control-group">
+                    <label for="intercommute-slider">Intercommutation Probability</label>
+                    <input type="range" id="intercommute-slider" min="0" max="100" value="100" step="1" disabled>
+                    <span id="intercommute-readout">100%</span>
+                    <p class="description">Probability strings swap partners on intersection. (Future feature)</p>
+                </div>
+            </div>
+
+            <div id="info-container" class="panel">
+                 <h3>Live Action Report</h3>
+                 <p id="live-commentary">Press 'Create Pair' or 'Random Network' to begin.</p>
+            </div>
+
+            <div id="quantitative-panel" class="panel">
+                <h3>Quantitative Analysis</h3>
+                <p><strong>Total Defect Energy:</strong> <span id="total-energy">N/A</span></p>
+                <p><strong>GW Power (proxy):</strong> <span id="gw-power">N/A</span></p>
+                <div id="event-log" style="height: 100px; overflow-y: scroll; background: #010409; border-radius: 4px; padding: 0.5rem; font-family: monospace; font-size: 0.8rem;">
+                    EVENT LOG:
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <div id="educational-content" class="panel" style="max-width: 1000px; margin: 4rem auto;">
+        <article>
+            <h2>The Physics of Cosmic Dynamics: A Deep Dive</h2>
+            <p>Welcome to the next level of cosmology simulation. While our first simulator, "The Cosmic Forge," showed how topological defects are *born*, this "Cosmic Tango" simulator explores what happens next. Defects are not static; they are dynamic, evolving entities that interact with each other and the expanding universe in a complex and violent dance. Understanding this dance is key to knowing whether any of these primordial relics could have survived to the present day.</p>
+            <section>
+                <h3>Part 1: The Prime Mover - Nambu-Goto and the Quest to be Straight</h4>
+                <p>What makes a cosmic string move? The fundamental answer lies in a beautiful piece of physics called the **Nambu-Goto action**. In simple terms, this action states that a string's motion is governed by a single principle: **minimize its own spacetime area**. A string is a 1-dimensional object, but as it moves through time, it sweeps out a 2-dimensional surface in spacetime called a "worldsheet." The Nambu-Goto action dictates that the string will move in such a way as to make the area of this worldsheet as small as possible.</p>
+                <p>What does this mean in practice? It means a string is always trying to shorten its length. The energy of a string is proportional to its length, so minimizing its length minimizes its energy. This gives rise to **tension**, which you can control with the "String Tension (μ)" slider. A taut, high-tension string will violently snap straight, trying to release its potential energy. A low-tension string is more placid and floppy. In this simulation, we model this with a "beads-on-a-string" approximation. Each point on the string feels a force from its neighbors, pulling it towards the midpoint. This simple rule effectively simulates the tension and causes the string to wiggle and oscillate as it tries to straighten itself out.</p>
+                <blockquote>
+                    <strong>Analogy:</strong> Think of a stretched rubber band. It stores potential energy. If you pluck it, the tension pulls it back, causing it to oscillate. A cosmic string is a relativistic, four-dimensional version of this. Its oscillations are its attempt to find a lower energy (shorter) configuration.
+                </blockquote>
+                <p>The "Universe Friction" slider introduces **Hubble Drag**. As the real universe expands, it resists the motion of objects within it. This friction dampens the string's oscillations, causing them to straighten out and slow down over cosmic time. A high friction setting represents a universe where expansion is dominant, quickly robbing the strings of their kinetic energy.</p>
+            </section>
+            <section>
+                <h2>Part 2: Interaction and Annihilation - The Tango of Creation and Destruction</h2>
+                <h4>Annihilation: When Opposites Attract</h4>
+                <p>Just as matter has antimatter, topological defects can have anti-defects. A cosmic string is defined by the direction the field "winds" around it; an anti-string is one where the field winds in the opposite direction. A monopole has a "charge" (like a north pole), while an anti-monopole has the opposite charge (a south pole). When a defect and its anti-defect meet, their topological properties cancel each other out perfectly. The "knot" in the scalar field can be completely undone, allowing the field in that region to finally relax into its true, lowest-energy vacuum state. The enormous potential energy stored in the defects is released in a burst of high-energy fundamental particles.</p>
+                <p>In this simulation, you can see this most clearly by creating a monopole-antimonopole pair. The string connecting them is pure tension, and it acts like a cosmic rubber band, pulling the two particles together. Their velocity increases until they collide and annihilate, leaving nothing behind but a flash of released energy. This is a fundamental process that would rapidly clear out defects from the early universe.</p>
+                <blockquote><strong>In the simulation:</strong> Click "Create Pair" to see a red monopole and a blue anti-monopole. The string's tension pulls them together. Watch the "Total Defect Energy" panel; when they annihilate, the energy will drop to zero. The event is also recorded in the log.</blockquote>
+                <h4>Intercommutation: Swapping Partners</h4>
+                <p>What happens when two regular strings (not a string and an anti-string) collide? They don't annihilate, but they can do something just as interesting: they **intercommute**. When they cross, they can break at the intersection point and swap partners, re-connecting to the other string. This process is believed to happen with nearly 100% probability. Intercommutation is a crucial mechanism for a string network to lose energy. It allows a large, tangled string to chop itself into smaller, closed loops. These loops can then oscillate, decay, and radiate their energy away as gravitational waves.</p>
+                <p>When strings intercommute, they often form sharp **kinks**. These kinks are discontinuities in the string's tangent vector, and they travel down the length of the string at the speed of light. The rapid, relativistic acceleration of the string at these kink points is a powerful source of gravitational radiation.</p>
+            </section>
+            <section>
+                <h2>Part 3: Cosmic Echoes - Gravitational Waves and the Domain Wall Problem</h2>
+                <h4>Cusps, Kinks, and Gravitational Waves</h4>
+                <p>A network of cosmic strings would be one of the most powerful sources of **gravitational waves** in the universe. As strings oscillate and intercommute, they are constantly accelerating their immense mass-energy at relativistic speeds. This generates ripples in the fabric of spacetime itself. Two special features are particularly potent sources:</p>
+                <ul>
+                    <li><strong>Kinks:</strong> As mentioned, these sharp bends are formed during intercommutation events and travel along the string at the speed of light.</li>
+                    <li><strong>Cusps:</strong> These are points on an oscillating string loop where, for an instant, the string segment folds back on itself and the tip of the fold moves at the speed of light. The energy at these points is immense.</li>
+                </ul>
+                <p>The gravitational waves produced by a string network would have a very different character from those produced by black hole mergers that observatories like LIGO currently detect. They would create a stochastic (random) background of gravitational waves across a wide range of frequencies. Searching for this background is a key goal for current and future gravitational wave observatories, including pulsar timing arrays and the space-based LISA mission. A detection would be a revolutionary discovery, providing a direct window into the physics of the very early universe. This simulation's "GW Power" meter provides a rough proxy for this effect, showing how more violent string motions generate stronger spacetime ripples.</p>
+                <h4>The Domain Wall Problem Revisited</h4>
+                <p>As we learned in the first simulation, a single stable domain wall would be a cosmological catastrophe. This simulation of dynamics shows why. A domain wall, like a string, has tension. It will always try to minimize its surface area to reduce its enormous energy. If a "bubble" of one vacuum forms inside another, the wall tension will cause the bubble to collapse rapidly. A complex, foam-like network of walls would quickly simplify itself, with smaller domains being "eaten" by larger ones. However, if a wall stretched across the entire universe, there would be no way for it to collapse. Its energy density would dilute more slowly than matter and radiation, and it would inevitably come to dominate the universe, which is contrary to what we observe. This is why cosmologists are confident that if domain walls were ever formed, they must have been unstable or part of a network that could completely annihilate.</p>
+            </section>
+            <section>
+                <h2>Part 4: Maximal Depth - The Frontier of Defect Physics</h2>
+                <h4>Particle Signatures from Annihilation</h4>
+                <p>When defects annihilate, their energy is converted into a shower of fundamental particles. What kind of particles? This depends on the Grand Unified Theory (GUT) that predicted the defects in the first place. For example, in many GUTs, the scalar field that breaks the symmetry is coupled to very heavy, exotic particles called **X and Y bosons**. The annihilation of a monopole-antimonopole pair could produce these X/Y bosons, which would then almost instantly decay into a cascade of more familiar Standard Model particles, like quarks, leptons, and photons. The result would be a burst of ultra-high-energy cosmic rays and gamma rays with a very specific energy signature. Detecting such a burst could be a "smoking gun" for both a specific GUT and the existence of topological defects.</p>
+                <h4>The Life of a Loop</h4>
+                <p>The formation of **loops** is a critical part of a cosmic string network's evolution. When a long string intersects with itself, it can pinch off a closed loop. This process is the primary way a tangled network simplifies itself. Once formed, these loops are independent entities. They oscillate relativistically, and these oscillations radiate energy away in the form of gravitational waves. As a loop radiates energy, it shrinks. The lifetime of a loop is proportional to its initial size; larger loops take much longer to decay. A universe with a string network would therefore contain a population of loops of all different sizes, all contributing to the stochastic gravitational wave background. Modeling this population of loops and their decay is a key part of predicting the precise signal we should be looking for.</p>
+                <h4>Hybrid Defects: Walls Bounded by Strings</h4>
+                <p>Nature can be more complex than our simple categories. Some theories predict the formation of **hybrid defects**. A classic example is a domain wall that is bounded by cosmic strings. This can happen if a symmetry `G` breaks to a smaller symmetry `H`, but on the wall itself, the symmetry is broken differently. For example, imagine our Z₂ symmetry (+1 or -1). If this symmetry is part of a larger, broken U(1) symmetry, you can have a situation where the "+1" vacuum region is separated from the "-1" region by a domain wall. But this wall can't end; it must be the "edge" of something. That something is a cosmic string. The domain wall's tension would pull on the strings, causing the entire structure to collapse and decay much faster than an isolated wall or string. These hybrid systems introduce a whole new layer of rich dynamics and potential observational signatures.</p>
+            </section>
+        </article>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- Basic Setup ---
+        const simWindow = document.getElementById('simulation-window');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        const camera = new THREE.PerspectiveCamera(75, simWindow.clientWidth / simWindow.clientHeight, 0.1, 1000);
+        camera.position.set(0, 10, 25);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        simWindow.appendChild(renderer.domElement);
+        const controls = new OrbitControls(camera, renderer.domElement);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(5, 10, 7.5);
+        scene.add(directionalLight);
+
+        // --- Resize Handling ---
+        const resizeObserver = new ResizeObserver(entries => {
+            const entry = entries[0];
+            const { width, height } = entry.contentRect;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        });
+        resizeObserver.observe(simWindow);
+
+        const defectGroup = new THREE.Group();
+        scene.add(defectGroup);
+
+        // --- Simulation State & Parameters ---
+        const SIM_STATE = {
+            isPaused: true,
+            timeStep: 0.1,
+            currentTime: 0.0,
+            friction: 0.05,
+            tension: 1.0,
+            monopoleMass: 1.0,
+        };
+        let defects = {
+            strings: [],
+            monopoles: [],
+        };
+
+        // --- Defect Classes ---
+        class Monopole {
+            constructor(position, charge) {
+                this.position = position;
+                this.velocity = new THREE.Vector3(0, 0, 0);
+                this.charge = charge;
+                const color = charge > 0 ? 0xff0000 : 0x0000ff;
+                const geometry = new THREE.SphereGeometry(0.5, 16, 16);
+                const material = new THREE.MeshStandardMaterial({ color: color, emissive: color });
+                this.mesh = new THREE.Mesh(geometry, material);
+                this.mesh.position.copy(position);
+                defectGroup.add(this.mesh);
+            }
+        }
+
+        class CosmicString {
+            constructor(points, type = 'string') {
+                this.points = points;
+                this.velocities = this.points.map(() => new THREE.Vector3());
+                this.type = type;
+                const curve = new THREE.CatmullRomCurve3(this.points);
+                const geometry = new THREE.TubeGeometry(curve, 64, 0.2, 8, false);
+                const color = type === 'string' ? 0xffff00 : 0x00ffff;
+                const material = new THREE.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: 0.4 });
+                this.mesh = new THREE.Mesh(geometry, material);
+                defectGroup.add(this.mesh);
+            }
+
+            updateGeometry() {
+                if (this.points.length < 2) {
+                    this.mesh.visible = false;
+                    return;
+                }
+                const curve = new THREE.CatmullRomCurve3(this.points, false, 'catmullrom');
+                this.mesh.geometry.dispose();
+                this.mesh.geometry = new THREE.TubeGeometry(curve, 64, 0.2, 8, false);
+            }
+        }
+
+        // --- Initial Condition Functions ---
+        function clearSimulation() {
+            defects.strings.forEach(s => {
+                s.mesh.geometry.dispose();
+                defectGroup.remove(s.mesh);
+            });
+            defects.monopoles.forEach(m => {
+                m.mesh.geometry.dispose();
+                defectGroup.remove(m.mesh);
+            });
+            defects.strings = [];
+            defects.monopoles = [];
+            SIM_STATE.currentTime = 0.0;
+            document.getElementById('event-log').innerHTML = 'EVENT LOG:';
+            document.getElementById('total-energy').textContent = 'N/A';
+            document.getElementById('gw-power').textContent = 'N/A';
+        }
+
+        function createMonopoleAntiMonopolePair() {
+            clearSimulation();
+            const m1_pos = new THREE.Vector3(-10, 0, 0);
+            const m2_pos = new THREE.Vector3(10, 0, 0);
+            const m1 = new Monopole(m1_pos, 1);
+            const m2 = new Monopole(m2_pos, -1);
+            const numSegments = 20;
+            const stringPoints = [];
+            for(let i=0; i<=numSegments; i++) {
+                if (i === 0) {
+                    stringPoints.push(m1_pos);
+                } else if (i === numSegments) {
+                    stringPoints.push(m2_pos);
+                } else {
+                    const point = new THREE.Vector3().lerpVectors(m1_pos, m2_pos, i/numSegments);
+                    stringPoints.push(point);
+                }
+            }
+            const str = new CosmicString(stringPoints);
+            defects.strings.push(str);
+            defects.monopoles.push(m1, m2);
+            calculateTotalEnergy();
+        }
+
+        function createRandomStringNetwork() {
+            clearSimulation();
+            const numStrings = 5;
+            for (let i = 0; i < numStrings; i++) {
+                const points = [];
+                const startPoint = new THREE.Vector3((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 30);
+                points.push(startPoint);
+                let currentPoint = startPoint.clone();
+                for (let j = 0; j < 10; j++) {
+                    const nextPoint = currentPoint.clone().add(new THREE.Vector3((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10));
+                    points.push(nextPoint);
+                    currentPoint = nextPoint;
+                }
+                defects.strings.push(new CosmicString(points));
+            }
+        }
+
+        // --- UI Listeners ---
+        document.getElementById('start-sim-btn').addEventListener('click', () => { SIM_STATE.isPaused = false; });
+        document.getElementById('pause-sim-btn').addEventListener('click', () => { SIM_STATE.isPaused = true; });
+        document.getElementById('reset-sim-btn').addEventListener('click', () => {
+            SIM_STATE.isPaused = true;
+            clearSimulation();
+        });
+        document.getElementById('create-pair-btn').addEventListener('click', createMonopoleAntiMonopolePair);
+        document.getElementById('create-network-btn').addEventListener('click', createRandomStringNetwork);
+
+        const frictionSlider = document.getElementById('friction-slider');
+        const tensionSlider = document.getElementById('tension-slider');
+        frictionSlider.addEventListener('input', (e) => {
+            SIM_STATE.friction = parseFloat(e.target.value);
+            document.getElementById('friction-readout').textContent = SIM_STATE.friction.toFixed(3);
+        });
+        tensionSlider.addEventListener('input', (e) => {
+            SIM_STATE.tension = parseFloat(e.target.value);
+            document.getElementById('tension-readout').textContent = SIM_STATE.tension.toFixed(1);
+        });
+
+
+        // --- Physics Engine ---
+        function logEvent(message) {
+            document.getElementById('live-commentary').textContent = message;
+            const eventLog = document.getElementById('event-log');
+            eventLog.innerHTML += `<br>${SIM_STATE.currentTime.toFixed(1)}s: ${message}`;
+            eventLog.scrollTop = eventLog.scrollHeight;
+        }
+
+        function handleInteractions() {
+            const monopolesToRemove = new Set();
+            const stringsToRemove = new Set();
+            for (let i = 0; i < defects.monopoles.length; i++) {
+                for (let j = i + 1; j < defects.monopoles.length; j++) {
+                    const m1 = defects.monopoles[i];
+                    const m2 = defects.monopoles[j];
+                    if (m1.charge * m2.charge < 0) {
+                        if (m1.position.distanceTo(m2.position) < 1.5) {
+                            monopolesToRemove.add(m1);
+                            monopolesToRemove.add(m2);
+                            logEvent(`Annihilation: Monopole & Anti-Monopole.`);
+                            for (const string of defects.strings) {
+                                if (string.points[0] === m1.position || string.points[string.points.length - 1] === m1.position) {
+                                    stringsToRemove.add(string);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (monopolesToRemove.size > 0) {
+                defects.monopoles = defects.monopoles.filter(m => !monopolesToRemove.has(m));
+                defects.strings = defects.strings.filter(s => !stringsToRemove.has(s));
+                monopolesToRemove.forEach(m => defectGroup.remove(m.mesh));
+                stringsToRemove.forEach(s => defectGroup.remove(s.mesh));
+            }
+        }
+
+        function calculateTotalEnergy() {
+            let energy = 0;
+            for(const m of defects.monopoles) {
+                energy += SIM_STATE.monopoleMass;
+                energy += 0.5 * SIM_STATE.monopoleMass * m.velocity.lengthSq();
+            }
+            for(const s of defects.strings) {
+                let length = 0;
+                for(let i=0; i < s.points.length - 1; i++) {
+                    length += s.points[i].distanceTo(s.points[i+1]);
+                }
+                energy += length * SIM_STATE.tension;
+            }
+            document.getElementById('total-energy').textContent = energy.toFixed(2);
+        }
+
+        function calculateGWPower() {
+            let totalKE = 0;
+            for (const string of defects.strings) {
+                for (const vel of string.velocities) {
+                    totalKE += 0.5 * vel.lengthSq();
+                }
+            }
+            document.getElementById('gw-power').textContent = (totalKE * 0.01).toExponential(2);
+        }
+
+        function updatePhysics(dt) {
+            SIM_STATE.currentTime += dt;
+            const stringForces = defects.strings.map(s => s.points.map(() => new THREE.Vector3()));
+            const monopoleForces = defects.monopoles.map(() => new THREE.Vector3());
+
+            for (let i = 0; i < defects.strings.length; i++) {
+                const string = defects.strings[i];
+                if (string.points.length < 2) continue;
+                for (let j = 1; j < string.points.length - 1; j++) {
+                    const p_prev = string.points[j - 1];
+                    const p_curr = string.points[j];
+                    const p_next = string.points[j + 1];
+                    const force = p_prev.clone().add(p_next).sub(p_curr.clone().multiplyScalar(2));
+                    stringForces[i][j].add(force.multiplyScalar(SIM_STATE.tension));
+                }
+            }
+
+            for (let i = 0; i < defects.monopoles.length; i++) {
+                const monopole = defects.monopoles[i];
+                for (let j = 0; j < defects.strings.length; j++) {
+                    const string = defects.strings[j];
+                    if (string.points[0] === monopole.position) {
+                        const force = string.points[1].clone().sub(string.points[0]).multiplyScalar(SIM_STATE.tension);
+                        monopoleForces[i].add(force);
+                    }
+                    if (string.points[string.points.length - 1] === monopole.position) {
+                        const force = string.points[string.points.length - 2].clone().sub(string.points[string.points.length - 1]).multiplyScalar(SIM_STATE.tension);
+                        monopoleForces[i].add(force);
+                    }
+                }
+            }
+
+            for (let i = 0; i < defects.strings.length; i++) {
+                const string = defects.strings[i];
+                for (let j = 0; j < string.points.length; j++) {
+                    const friction = string.velocities[j].clone().multiplyScalar(-SIM_STATE.friction);
+                    stringForces[i][j].add(friction);
+                    string.velocities[j].add(stringForces[i][j].multiplyScalar(dt));
+                }
+            }
+            for (let i = 0; i < defects.monopoles.length; i++) {
+                const friction = defects.monopoles[i].velocity.clone().multiplyScalar(-SIM_STATE.friction);
+                monopoleForces[i].add(friction);
+                defects.monopoles[i].velocity.add(monopoleForces[i].multiplyScalar(dt / SIM_STATE.monopoleMass));
+            }
+
+            for (const monopole of defects.monopoles) {
+                monopole.position.add(monopole.velocity.clone().multiplyScalar(dt));
+            }
+            for (const string of defects.strings) {
+                for (let i = 1; i < string.points.length - 1; i++) {
+                    string.points[i].add(string.velocities[i].clone().multiplyScalar(dt));
+                }
+            }
+
+            for (const monopole of defects.monopoles) {
+                monopole.mesh.position.copy(monopole.position);
+            }
+            for (const string of defects.strings) {
+                string.updateGeometry();
+            }
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!SIM_STATE.isPaused) {
+                updatePhysics(SIM_STATE.timeStep);
+                handleInteractions();
+                calculateTotalEnergy();
+                calculateGWPower();
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        console.log("Cosmic Tango Simulator Initialized.");
+    </script>
+</body>
+</html>
