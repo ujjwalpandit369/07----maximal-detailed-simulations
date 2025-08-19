@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Freedom Zoo: A Guide to Mechanical Degrees of Freedom</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            background-color: #f0f0f0;
+            color: #333;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #simulation-container {
+            flex: 3;
+            position: relative;
+            height: 100%;
+        }
+        #viewport {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #info-panels {
+            flex: 2;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #fff;
+            border-left: 1px solid #ccc;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .panel {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .controls button {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            background-color: #f7f7f7;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .controls button:hover {
+            background-color: #e7e7e7;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="simulation-container">
+        <canvas id="viewport"></canvas>
+    </div>
+
+    <div id="info-panels">
+        <h1>The Freedom Zoo</h1>
+
+        <div id="controls-panel" class="panel">
+            <h2>Controls</h2>
+            <p><i>A "Degree of Freedom" (DoF) is an independent way an object can move. How many sliders would you need to control it completely? That's its DoF.</i></p>
+
+            <h3>1. Spawn Object</h3>
+            <div class="controls" id="spawn-controls">
+                <button id="spawn-cube">Rigid Cube</button>
+                <button id="spawn-sphere">Point Mass</button>
+            </div>
+
+            <h3>2. Apply Constraint</h3>
+            <div class="controls" id="constraint-controls">
+                 <button id="constraint-plane">Constrain to Surface (Plane)</button>
+                 <button id="constraint-rail">Constrain to Rail (Line)</button>
+                 <button id="constraint-point">Fix to Point</button>
+                 <button id="constraint-clear">Clear All Constraints</button>
+            </div>
+
+            <h3>3. "Wiggle" Tool</h3>
+            <p>Use your mouse to interact: <b>Left-click + Drag</b> to rotate view. <b>Scroll</b> to zoom. <b>Click an object</b> to select it. <b>Click and Drag an object</b> to "wiggle" it.</p>
+
+            <h3>4. Coordinate System Display</h3>
+            <div id="coordinate-display" style="font-family: 'Courier New', Courier, monospace; white-space: pre;">
+                <p>Select an object to see its coordinates.</p>
+            </div>
+        </div>
+
+        <div id="dof-counter-panel" class="panel">
+            <h2>The DoF Counter</h2>
+            <div id="dof-analysis">
+                <p>Spawn an object and apply constraints to see a live analysis.</p>
+            </div>
+        </div>
+
+        <div id="physics-explained-panel" class="panel">
+            <h2>The Physics Explained</h2>
+            <div id="physics-content">
+                <h3>Part A: What is a Degree of Freedom?</h3>
+                <p>In physics, a <strong>degree of freedom (DoF)</strong> refers to a single, independent parameter that is needed to specify the state of a physical system. It's a formal way of asking: "How many distinct ways can this object move?" Each degree of freedom represents a "slider" on a cosmic control console that you would need to have complete control over the object's position and orientation. The total number of DoF is the minimum number of these sliders required to describe its state completely.</p>
+                <p>The key word here is <strong>independent</strong>. This means that you can change one parameter without affecting any of the others. For a point on a 2D plane, you can slide it along the x-axis without changing its y-coordinate. These are two independent movements, so the system has 2 DoF.</p>
+                <p>Let's build our intuition with analogies:</p>
+                <ul>
+                    <li><strong>A Train on a Track (1 DoF):</strong> A train is heavily constrained. It can only move forward or backward along a fixed track. It cannot move up, down, left, or right. To know its exact position, you only need one number: its distance along the track from a starting point. Therefore, it has one degree of freedom.</li>
+                    <li><strong>A Bead on a Wire (1 DoF):</strong> This is a classic physics example. Like the train, the bead can only slide along the wire. Its state is perfectly described by a single number representing its position on the wire.</li>
+                    <li><strong>A Car on a Large, Flat Parking Lot (3 DoF):</strong> A car can move forward/backward (x-axis) and left/right (y-axis). It can also change its heading by rotating. These three movements are independent: moving forward doesn't inherently change the car's orientation, and turning the wheel doesn't inherently change its position (at that instant). So, a car on a plane has 3 DoF: two translational and one rotational.</li>
+                    <li><strong>A Boat on a Lake (3 DoF):</strong> Similar to the car, a boat can move to any (x, y) position on the water's surface and can have any rotational heading. This gives it 3 DoF.</li>
+                    <li><strong>A Submarine (6 DoF):</strong> A submarine moves in a 3D world. It can move along three axes: forward/backward (x), side-to-side (y, or sway), and up/down (z, or heave). It can also rotate around three axes: it can tilt its nose up and down (pitch), turn its nose left and right (yaw), and tilt from side to side (roll). Since all six of these movements are independent, a submarine (or any free-floating rigid object like a spaceship or helicopter) has 6 degrees of freedom.</li>
+                    <li><strong>A Human Arm (~7+ DoF):</strong> Complex systems are just collections of simpler systems. Your shoulder acts as a ball joint, allowing you to move your arm in 3 rotational degrees of freedom. Your elbow is a hinge joint, adding 1 more DoF. Your wrist adds about 3 more DoF (pitch, yaw, and roll). The total DoF of your arm is the sum of the DoF of its individual joints, resulting in a system with at least 7 degrees of freedom, allowing for incredibly complex movements.</li>
+                </ul>
+
+                <h3>Part B: Translational and Rotational Freedom</h3>
+                <p>For any rigid body, we can neatly categorize its potential movements into two types: translation and rotation.</p>
+                <h4>Translational Degrees of Freedom (Movement *of* the Center of Mass)</h4>
+                <p>Translation is movement in which every point of the object moves in the same direction and by the same amount. It's the motion of the object's center of mass through space. In a three-dimensional world, there are three independent directions for this movement:</p>
+                <ul>
+                    <li><strong>Along the X-axis:</strong> Moving left and right.</li>
+                    <li><strong>Along the Y-axis:</strong> Moving up and down.</li>
+                    <li><strong>Along the Z-axis:</strong> Moving forward and backward.</li>
+                </ul>
+                <p>A <strong>point mass</strong>—an idealized object with mass but zero size, like the "Point Mass" sphere in the simulation—can only translate. Since it has no size, rotation is meaningless. Therefore, a free point mass always has exactly <strong>3 translational DoF</strong>.</p>
+
+                <h4>Rotational Degrees of Freedom (Movement *around* the Center of Mass)</h4>
+                <p>Rotation is movement where the object spins about an axis. For an extended rigid body (like the Cube), we also need to describe its orientation. There are three independent axes around which an object can rotate:</p>
+                <ul>
+                    <li><strong>Pitch:</strong> Rotation around the side-to-side (transverse) axis. Think of a plane nosing up or down, or you nodding your head "yes".</li>
+                    <li><strong>Yaw:</strong> Rotation around the vertical axis. Think of a plane turning left or right, or you shaking your head "no".</li>
+                    <li><strong>Roll:</strong> Rotation around the front-to-back (longitudinal) axis. Think of a plane tilting its wings, or you tilting your head to the side.</li>
+                </ul>
+                <p>Any object that has physical size (is not a point mass) is a **rigid body** and has these <strong>3 rotational DoF</strong>. The total degrees of freedom for a free rigid body in 3D space is therefore the sum of its translational and rotational freedoms: 3 + 3 = 6 DoF.</p>
+
+                <h3>Part C: Constraints and Generalized Coordinates</h3>
+                <p>The Newtonian approach to mechanics involves tracking all possible coordinates (like x, y, z for a particle) and then figuring out the complex "forces of constraint" that limit the motion (like the force the wire exerts on the bead to keep it on the path). This can be very difficult.</p>
+                <p>The Lagrangian and Hamiltonian formulations of mechanics, developed later, offer a more elegant and powerful perspective. The key idea is to change our way of thinking: instead of describing where the object *could* be and then adding rules, let's define a new set of coordinates that *automatically respects the constraints*. These new coordinates are called <strong>generalized coordinates</strong>.</p>
+                <p>Let's revisit the "bead on a circular wire" example in a 2D plane.</p>
+                <ul>
+                    <li><strong>Old Way (Newtonian):</strong> We start with 2 DoF (a point on a plane). We use two Cartesian coordinates, `x` and `y`. But the bead is not free; it is bound by the constraint that it must be on the wire, which we can write as an equation: `x² + y² = R²`, where R is the radius of the wire. We have two variables and one equation of constraint. This is messy.</li>
+                    <li><strong>New Way (Lagrangian):</strong> We ask, "What is the minimum information we need to know the bead's position?" We realize that if we just know the angle `θ` of the bead along the wire, we know everything. We can define a single **generalized coordinate** `q = θ`. The Cartesian coordinates can be found if we need them (`x = R cos(θ)`, `y = R sin(θ)`), but the constraint is now built into our coordinate system. The problem is simplified from two variables plus an equation to just one variable.</li>
+                </ul>
+                <p>This is a profound shift. The number of generalized coordinates required to describe a system is exactly equal to its true number of degrees of freedom. By choosing a smart set of coordinates, we can often eliminate the constraints from the problem entirely. This is the heart of higher-level physics. The simulation's "DoF Counter" is essentially finding the number of generalized coordinates needed to describe the object after you've applied constraints.</p>
+            </div>
+        </div>
+
+        <div id="config-space-panel" class="panel">
+            <h2>Configuration Space Explorer</h2>
+            <div id="config-space-content">
+                <p>This panel is designed to help you visualize an abstract but extremely powerful concept in physics: <strong>configuration space</strong>.</p>
+                <p>In simple terms, configuration space is a map of every possible state the object can be in. A single point in this abstract space corresponds to one unique arrangement (position and orientation) of the real object in its 3D world. As you "wiggle" the object in the simulation, you are tracing out a path in its configuration space.</p>
+                <p>The most important takeaway is this: <strong>the number of dimensions of the configuration space is exactly equal to the object's degrees of freedom.</strong></p>
+                <ul>
+                    <li><strong>1 DoF System (e.g., Bead on a Wire):</strong> The bead only needs one number to define its state (its position along the wire). Its configuration space is therefore one-dimensional: a line. If the wire is a closed loop, the configuration space is a circle.</li>
+                    <li><strong>2 DoF System (e.g., Point Mass on a Plane):</strong> The object needs two numbers (x, y) to define its state. Its configuration space is two-dimensional: a plane. The configuration space looks just like the real space in this simple case.</li>
+                    <li><strong>3 DoF System (e.g., Rigid Cube on a Plane):</strong> The cube needs three numbers to define its state: its position (x, y) and its rotation angle around the vertical axis. Its configuration space is three-dimensional. It's crucial to understand that this is not our normal 3D space; it's an abstract space where the axes are `x`, `y`, and `rotation angle`.</li>
+                </ul>
+                <p>Physicists use configuration space to study the entire range of a system's dynamics at once, turning complex motions in real space into simple paths through this abstract map.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import maps for ES6 module handling in browser -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.166.1/examples/jsm/",
+            "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import * as CANNON from 'cannon-es';
+
+        // --- Basic Setup ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xeeeeee);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(5, 5, 5);
+
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('viewport'), antialias: true });
+        renderer.setSize(document.getElementById('simulation-container').clientWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 15, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // --- Physics Setup ---
+        const physicsWorld = new CANNON.World({
+            gravity: new CANNON.Vec3(0, -9.82, 0),
+        });
+
+        // --- Ground Plane ---
+        const groundGeo = new THREE.PlaneGeometry(30, 30);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
+        const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.receiveShadow = true;
+        scene.add(groundMesh);
+
+        const groundBody = new CANNON.Body({
+            type: CANNON.Body.STATIC,
+            shape: new CANNON.Plane(),
+        });
+        groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+        physicsWorld.addBody(groundBody);
+
+        // --- Simulation State ---
+        let objects = [];
+        let selectedObject = null;
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        const coordDisplay = document.getElementById('coordinate-display');
+        const dofAnalysisDisplay = document.getElementById('dof-analysis');
+
+        // --- Object Creation ---
+        const createObject = (type) => {
+            let mesh, body;
+            const material = new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff });
+
+            if (type === 'cube') {
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                mesh = new THREE.Mesh(geometry, material);
+                const shape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
+                body = new CANNON.Body({ mass: 1, shape });
+            } else if (type === 'sphere') {
+                const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+                mesh = new THREE.Mesh(geometry, material);
+                const shape = new CANNON.Sphere(0.5);
+                body = new CANNON.Body({ mass: 1, shape });
+            }
+
+            mesh.castShadow = true;
+            body.position.set(Math.random() * 2 - 1, 5, Math.random() * 2 - 1);
+            mesh.position.copy(body.position);
+
+            scene.add(mesh);
+            physicsWorld.addBody(body);
+
+            const simObject = { mesh, body, type, constraints: [] };
+            objects.push(simObject);
+            selectObject(simObject);
+        };
+
+        // --- Object Selection ---
+        const selectObject = (object) => {
+            // Deselect previous
+            if (selectedObject) {
+                selectedObject.mesh.material.emissive.setHex(0x000000);
+            }
+            selectedObject = object;
+            if (selectedObject) {
+                selectedObject.mesh.material.emissive.setHex(0x555555);
+            }
+            updateDoFAnalysis(); // Update analysis when selection changes
+        };
+
+        document.getElementById('spawn-cube').addEventListener('click', () => createObject('cube'));
+        document.getElementById('spawn-sphere').addEventListener('click', () => createObject('sphere'));
+
+        // --- Constraint and DoF Logic ---
+        const applyConstraint = (type) => {
+            if (!selectedObject) {
+                alert("Please select an object first!");
+                return;
+            }
+            if (type === 'clear') {
+                selectedObject.constraints = [];
+            } else if (!selectedObject.constraints.includes(type)) {
+                selectedObject.constraints.push(type);
+            }
+            // Reset body state when constraints change
+            selectedObject.body.velocity.set(0, 0, 0);
+            selectedObject.body.angularVelocity.set(0, 0, 0);
+            updateDoFAnalysis();
+        };
+
+        const updateDoFAnalysis = () => {
+            if (!selectedObject) {
+                dofAnalysisDisplay.innerHTML = `<p>Spawn an object and apply constraints to see a live analysis.</p>`;
+                return;
+            }
+
+            let baseTrans = 3;
+            let baseRot = selectedObject.type === 'sphere' ? 0 : 3;
+            let currentTrans = baseTrans;
+            let currentRot = baseRot;
+
+            let analysisText = `<b>Base DoF for a ${selectedObject.type}:</b><br>`;
+            analysisText += `• ${baseTrans} translational (x, y, z)<br>`;
+            if (baseRot > 0) analysisText += `• ${baseRot} rotational (φ, θ, ψ)<br>`;
+            analysisText += `<b>Total = ${baseTrans + baseRot}</b><hr>`;
+
+            let constraintsApplied = new Set();
+
+            for (const constraint of selectedObject.constraints) {
+                if (constraintsApplied.has(constraint)) continue;
+
+                analysisText += `<b>Constraint Applied: ${constraint.replace('_', ' ')}</b><br>`;
+                if (constraint === 'plane') {
+                    analysisText += `  - Removes 1 translational DoF (y-axis movement).<br>`;
+                    analysisText += `  - Removes 2 rotational DoF (tumbling on x/z axes).<br>`;
+                    currentTrans -= 1;
+                    currentRot -= 2;
+                } else if (constraint === 'rail') {
+                    analysisText += `  - Removes 2 translational DoF (y, z axes).<br>`;
+                    analysisText += `  - Removes 3 rotational DoF.<br>`;
+                    currentTrans -= 2;
+                    currentRot -= 3;
+                } else if (constraint === 'point') {
+                    analysisText += `  - Removes 3 translational DoF.<br>`;
+                    analysisText += `  - Removes 3 rotational DoF.<br>`;
+                    currentTrans -= 3;
+                    currentRot -= 3;
+                }
+                constraintsApplied.add(constraint);
+            }
+
+            currentTrans = Math.max(0, currentTrans);
+            currentRot = Math.max(0, currentRot);
+            const totalDof = currentTrans + currentRot;
+
+            analysisText += `<hr><b>Final Count:</b><br>`;
+            analysisText += `• ${currentTrans} translational DoF<br>`;
+            analysisText += `• ${currentRot} rotational DoF<br>`;
+            analysisText += `<h2 style="text-align: right;">Total DoF: ${totalDof}</h2>`;
+
+            dofAnalysisDisplay.innerHTML = analysisText;
+        };
+
+        const applyActiveConstraints = (object) => {
+            for (const constraint of object.constraints) {
+                if (constraint === 'plane') {
+                    // Constrain to Y=0 plane (approx)
+                    if (object.body.position.y < 0.5) {
+                         object.body.position.y = 0.5;
+                    }
+                    object.body.velocity.y = 0;
+                    object.body.angularVelocity.x = 0;
+                    object.body.angularVelocity.z = 0;
+                } else if (constraint === 'rail') {
+                    // Constrain to X-axis
+                    object.body.velocity.y = 0;
+                    object.body.velocity.z = 0;
+                    object.body.angularVelocity.set(0,0,0);
+                    object.body.position.y = 0.5;
+                    object.body.position.z = 0;
+                } else if (constraint === 'point') {
+                    // Fix in place
+                    object.body.velocity.set(0, 0, 0);
+                    object.body.angularVelocity.set(0, 0, 0);
+                }
+            }
+        };
+
+        document.getElementById('constraint-plane').addEventListener('click', () => applyConstraint('plane'));
+        document.getElementById('constraint-rail').addEventListener('click', () => applyConstraint('rail'));
+        document.getElementById('constraint-point').addEventListener('click', () => applyConstraint('point'));
+        document.getElementById('constraint-clear').addEventListener('click', () => applyConstraint('clear'));
+
+
+        // --- Coordinate Display Logic ---
+        const updateCoordinateDisplay = () => {
+            if (selectedObject) {
+                const pos = selectedObject.body.position;
+                const quat = selectedObject.body.quaternion;
+                const euler = new THREE.Euler().setFromQuaternion(
+                    new THREE.Quaternion(quat.x, quat.y, quat.z, quat.w)
+                );
+
+                const toDeg = (rad) => (rad * 180 / Math.PI).toFixed(1);
+
+                coordDisplay.innerHTML = `
+<b>Type:</b> ${selectedObject.type}
+<b>Position (x, y, z):</b>
+  ${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}
+<b>Rotation (φ, θ, ψ)°:</b>
+  ${toDeg(euler.x)}, ${toDeg(euler.y)}, ${toDeg(euler.z)}
+                `.trim();
+            } else {
+                coordDisplay.innerHTML = `<p>Select an object to see its coordinates.</p>`;
+            }
+        };
+
+        // --- Wiggle Tool Logic ---
+        // This is a simplified wiggle implementation. A more robust one uses constraints.
+        let isDragging = false;
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // Plane to project mouse movement onto
+
+        window.addEventListener('mousedown', (event) => {
+            if (event.target !== renderer.domElement) return;
+
+            mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+            mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(objects.map(o => o.mesh));
+
+            if (intersects.length > 0) {
+                const clickedMesh = intersects[0].object;
+                const clickedObject = objects.find(o => o.mesh === clickedMesh);
+                if (clickedObject) {
+                    isDragging = true;
+                    controls.enabled = false; // Disable camera controls while dragging
+                    selectObject(clickedObject);
+                }
+            }
+        });
+
+        window.addEventListener('mousemove', (event) => {
+            if (isDragging && selectedObject) {
+                mouse.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+                mouse.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+
+                const intersection = new THREE.Vector3();
+                raycaster.ray.intersectPlane(plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(plane.normal), selectedObject.mesh.position), intersection);
+
+                if (intersection) {
+                    const force = new CANNON.Vec3()
+                        .copy(intersection)
+                        .vsub(selectedObject.body.position)
+                        .scale(100); // Spring-like force
+                    selectedObject.body.applyForce(force, selectedObject.body.position);
+                }
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+            controls.enabled = true;
+        });
+
+
+        // --- Render Loop ---
+        const clock = new THREE.Clock();
+        let oldElapsedTime = 0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsedTime = clock.getElapsedTime();
+            const deltaTime = elapsedTime - oldElapsedTime;
+            oldElapsedTime = elapsedTime;
+
+            // Apply constraints before physics step
+            for(const object of objects) {
+                applyActiveConstraints(object);
+            }
+
+            // Update physics world
+            physicsWorld.step(1 / 60, deltaTime, 3);
+
+            // Sync physics bodies with three.js meshes
+            for(const object of objects) {
+                object.mesh.position.copy(object.body.position);
+                object.mesh.quaternion.copy(object.body.quaternion);
+            }
+
+            updateCoordinateDisplay();
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // --- Handle Window Resize ---
+        window.addEventListener('resize', () => {
+            const container = document.getElementById('simulation-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        console.log("3D Environment Initialized Successfully!");
+        animate();
+
+    </script>
+</body>
+</html>
