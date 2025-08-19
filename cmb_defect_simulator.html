@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Echoes of Creation - CMB Defect Simulator</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --primary-text-color: #c9d1d9;
+            --secondary-text-color: #8b949e;
+            --border-color: #30363d;
+            --accent-color: #58a6ff;
+            --panel-bg-color: #161b22;
+            --input-bg-color: #010409;
+        }
+        body {
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--primary-text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            line-height: 1.6;
+        }
+        #app-container {
+            display: grid;
+            grid-template-columns: 1fr 450px;
+            grid-template-rows: auto 1fr;
+            grid-template-areas:
+                "header header"
+                "main   sidebar";
+            height: 95vh;
+            gap: 1rem;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        h1, h2, h3 {
+            color: var(--primary-text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3em;
+            font-weight: 600;
+        }
+        #header { grid-area: header; text-align: center; }
+        #header h1 { margin: 0; border: none; }
+        #main-content {
+            grid-area: main;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            min-height: 0;
+        }
+        #cmb-map-container, #power-spectrum-container {
+            flex: 1;
+            background-color: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+        #cmb-map-canvas { cursor: crosshair; }
+        #sidebar {
+            grid-area: sidebar;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        .panel {
+            background-color: var(--panel-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+        }
+        .control-group { margin-bottom: 1.5rem; }
+        label, .description { display: block; margin-bottom: 0.5rem; }
+        .description { font-size: 0.85rem; color: var(--secondary-text-color); }
+        .control-group span { font-size: 0.9rem; color: var(--accent-color); margin-left: 0.5rem; }
+        button, select {
+            width: 100%;
+            padding: 0.5rem;
+            background-color: var(--input-bg-color);
+            color: var(--primary-text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        input[type="range"] { width: 100%; }
+
+        #educational-content {
+            padding: 2rem 4rem;
+            max-width: 1000px;
+            margin: 4rem auto;
+        }
+        #educational-content h2 { font-size: 2.5rem; border-top: 2px solid var(--border-color); padding-top: 1.5rem; margin-top: 3rem; }
+        #educational-content h3 { font-size: 1.8rem; border: none; }
+        #educational-content h4 { font-size: 1.4rem; color: var(--accent-color); border-bottom: 1px solid var(--border-color); padding-bottom: 0.2em; }
+        code { background-color: var(--input-bg-color); padding: 0.2em 0.4em; border-radius: 4px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+        blockquote { border-left: 4px solid var(--accent-color); padding-left: 1rem; margin-left: 0; color: var(--secondary-text-color); font-style: italic; }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <header id="header">
+            <h1>Echoes of Creation: Topological Defects and the CMB</h1>
+        </header>
+
+        <main id="main-content">
+            <div id="cmb-map-container">
+                <canvas id="cmb-map-canvas"></canvas>
+            </div>
+            <div id="power-spectrum-container">
+                <canvas id="power-spectrum-canvas"></canvas>
+            </div>
+        </main>
+
+        <aside id="sidebar">
+            <div id="controls-panel" class="panel">
+                <h2>Controls</h2>
+                <div class="control-group">
+                    <button id="generate-cmb-btn">Generate Pristine CMB</button>
+                </div>
+                <div class="control-group">
+                    <label for="noise-slider">CMB Noise Level</label>
+                    <input type="range" id="noise-slider" min="0" max="100" value="100" step="1">
+                    <span id="noise-readout">100%</span>
+                    <p class="description">Amplitude of the standard inflationary fluctuations.</p>
+                </div>
+                <hr style="border-color: var(--border-color); margin-bottom: 1.5rem;">
+                <div class="control-group">
+                    <label for="defect-type-select">Defect Type to Implant</label>
+                    <select id="defect-type-select">
+                        <option value="string">Cosmic String</option>
+                        <option value="wall">Domain Wall</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="tension-slider">Defect Tension / Energy Scale (Gμ)</label>
+                    <input type="range" id="tension-slider" min="-11" max="-6" value="-7" step="0.1">
+                    <span id="tension-readout">1.0e-7</span>
+                    <p class="description">Strength of the defect's gravitational effect.</p>
+                </div>
+                <div class="control-group">
+                    <label for="redshift-slider">Time of Observation / Redshift (z)</label>
+                    <input type="range" id="redshift-slider" min="0" max="1100" value="550" step="10">
+                    <span id="redshift-readout">z=550</span>
+                    <p class="description">Scales the amplitude of the defect signal over cosmic time.</p>
+                </div>
+            </div>
+            <div id="data-analysis-panel" class="panel">
+                <h3>Data Analysis Toolkit</h3>
+                <div class="control-group">
+                    <button id="subtract-map-btn">Toggle Defect Signal</button>
+                </div>
+                <p><strong>f_NL (Non-Gaussianity):</strong> <span id="fnl-readout">N/A</span></p>
+            </div>
+            <div id="info-panel" class="panel">
+                <h3>Decoding the Map</h3>
+                <p id="live-commentary">Generate a CMB map to begin. Then, click and drag on the map to draw a defect.</p>
+            </div>
+        </aside>
+    </div>
+
+    <div id="educational-content" class="panel" style="max-width: 1000px; margin: 4rem auto;">
+        <article>
+            <h2>Echoes of Creation: A Cosmologist's Guide to the CMB</h2>
+            <p>This simulation is your personal cosmology laboratory. You are about to explore the most ancient light in the universe—the Cosmic Microwave Background (CMB)—and search for the faint, phantom-like signatures of topological defects. This guide will provide the deep context needed to understand what you are seeing, from the standard model of cosmology to the subtle statistical tools used to hunt for new physics.</p>
+            <section>
+                <h3>Part 1: The Standard Picture - A Universe Born from Quantum Noise</h3>
+                <p>The "pristine" CMB map you can generate is not just random static; it's a precise model of our universe's baby picture, as predicted by the theory of **Cosmic Inflation**. This theory posits that in the first tiny fraction of a second (roughly 10⁻³⁶ to 10⁻³² seconds) after the Big Bang, the universe underwent a period of staggering, exponential expansion. It grew from a size smaller than a proton to macroscopic scales in an instant.</p>
+                <p>During this hyper-expansion, tiny, unavoidable **quantum fluctuations** in various energy fields were stretched to astronomical sizes. These are the seeds of all structure in the universe. The regions that were slightly denser due to these fluctuations eventually collapsed under gravity to form galaxies and galaxy clusters. The regions that were slightly less dense became the great cosmic voids. Inflation makes a powerful prediction: these initial fluctuations should be almost perfectly **Gaussian**, meaning they follow a standard bell-curve statistical distribution. The "CMB Noise Level" slider controls the amplitude of these primordial fluctuations.</p>
+                <blockquote><strong>The Power Spectrum:</strong> The defining characteristic of the CMB is its **angular power spectrum**. This plot, which you can see in the bottom-left panel, shows the *intensity* (or variance) of temperature fluctuations at different angular sizes on the sky. The series of peaks and troughs is a fossilized record of sound waves propagating through the hot, dense plasma of the early universe before the CMB was released. The precise location and height of these "acoustic peaks" tell us fundamental properties of the universe, such as its overall geometry, the density of dark matter, and the density of baryonic (normal) matter. The pristine CMB you generate has a power spectrum that closely matches the one observed by satellites like Planck. The challenge for any alternative theory, like those involving defects, is to reproduce these peaks while adding their own new signatures.</blockquote>
+            </section>
+            <section>
+                <h3>Part 2: The Physics of Signatures - How Defects Leave their Fingerprints</h3>
+                <h4>The Sachs-Wolfe Effect: Gravity's Red Pen</h4>
+                <p>How can a massive object like a cosmic string, which might have passed through our line of sight a billion years ago, leave a mark on light that was emitted 13.8 billion years ago? The answer lies in how gravity affects light, a key prediction of General Relativity. A photon is like a marble. If it has to climb out of a gravitational potential well (a dip in spacetime caused by a massive object), it loses energy and becomes **redshifted** (appears cooler). If it falls into a potential well, it gains energy and becomes **blueshifted** (appears hotter).</p>
+                <p>This is the **Sachs-Wolfe effect**. For the primordial CMB fluctuations, overdense regions were potential wells. Photons originating from these regions had to climb out, so they lost energy, leading to the counter-intuitive result that denser regions correspond to *cold* spots on the CMB. The opposite is true for underdense regions, which create hot spots.</p>
+                <h4>The Integrated Sachs-Wolfe (ISW) Effect: A Changing Landscape</h4>
+                <p>The simple Sachs-Wolfe effect assumes the gravitational potentials are static. But what if a potential well changes while the photon is passing through it? This is where topological defects come in. A moving cosmic string or a collapsing domain wall creates a *time-varying* gravitational potential. A photon might fall into a potential well, gain energy, but then the well becomes shallower (due to the defect moving away) as the photon climbs out. It doesn't have to pay back all the energy it gained. The net result is a change in the photon's energy, and thus its observed temperature. This is the **Integrated Sachs-Wolfe (ISW) effect**, and it is the primary mechanism by which moving defects imprint signatures on the CMB long after it was first emitted.</p>
+                <h4>Specific Defect Signatures</h4>
+                <ul>
+                    <li><strong>Cosmic Strings (Kaiser-Stebbins Effect):</strong> A cosmic string is a pure line of tension. According to General Relativity, this warps spacetime around it into a "conical" shape. There is no gravitational pull towards the string, but spacetime is simply missing a wedge-shaped region behind it. As a string moves across the sky, a photon passing on the "front" side sees space as normal, but a photon passing just "behind" it is effectively deflected, as if space itself has been squashed. This leads to a differential Doppler shift. Light from behind the moving string is blueshifted, while light from in front is redshifted. The result on the CMB map is a sharp, line-like discontinuity in temperature. This is a very distinct signature that cosmologists actively search for.</li>
+                    <li><strong>Domain Walls:</strong> A domain wall is a 2D sheet of immense energy density. Its gravitational potential is enormous. If a large wall were to pass through our observable universe, it would create a giant, disk-shaped hot or cold spot on the CMB via the ISW effect. As the wall enters our Hubble volume, photons passing through it are blueshifted. As it leaves, they are redshifted. The size and amplitude of these spots would be so large that their absence in the real CMB data places the strongest constraints on their existence.</li>
+                    <li><strong>Textures:</strong> A texture is a more complex, tangled defect that unwinds and collapses in a localized region of spacetime. This unwinding event is very energetic and creates a time-dependent gravitational potential that perturbs the CMB. The signature is typically a characteristic pattern of hot and cold spots with a specific shape, which depends on the details of the underlying theory.</li>
+                </ul>
+            </section>
+            <section>
+                <h2>Part 3: Maximal Depth - Pushing the Frontiers</h2>
+                <h4>B-Mode Polarization: The Smoking Gun?</h4>
+                <p>Light is an electromagnetic wave, and it can be **polarized** (its electric field can oscillate in a preferred direction). The CMB is polarized. This polarization can be decomposed into two patterns: E-modes (which have no "curl," like an electric field) and B-modes (which have a "curl," like a magnetic field). Inflationary quantum fluctuations primarily produce E-modes. Detecting primordial B-modes is the "holy grail" of observational cosmology, as they would be a definitive sign of primordial gravitational waves from inflation.</p>
+                <p>However, topological defects are also excellent sources of B-modes! The vector and tensor perturbations caused by moving strings and other defects would generate a B-mode signal with a different power spectrum shape than the one expected from inflation. A key challenge for future CMB experiments (like the Simons Observatory and CMB-S4) is to detect B-modes and then figure out if they came from inflation or from defects.</p>
+                <h4>The Sunyaev-Zel'dovich (SZ) Effect</h4>
+                <p>The CMB is not just affected by gravity. As CMB photons travel through the universe, they can interact with hot, ionized gas, such as the gas in galaxy clusters. In a process called inverse Compton scattering, the high-energy electrons in the gas kick the CMB photons to higher energies. This distorts the blackbody spectrum of the CMB in a very specific, frequency-dependent way, known as the Sunyaev-Zel'dovich (SZ) effect. A collapsing, annihilating defect would also be surrounded by a cloud of hot gas and high-energy particles, and would therefore produce its own unique SZ signature, providing another potential avenue for detection.</p>
+                <h4>Gravitational Lensing of the CMB</h4>
+                <p>Just as a string can deflect light from a distant galaxy, it can also gravitationally lens the CMB itself, which lies behind it. This would create subtle distortions in the statistical properties of the hot and cold spots. For example, it would create correlations in the CMB fluctuations on either side of the string, and would generate a specific type of B-mode polarization. This lensing signature is another key target in the search for cosmic strings. It requires a complex ray-tracing calculation, tracing the path of light from the surface of last scattering, past the defect, to us, the observers.</p>
+            </section>
+        </article>
+    </div>
+
+    <script type="module">
+        // --- FFT Library (Self-contained) ---
+        const FFT = {};
+        (function(exports) {
+            const complex = {
+                add: (a, b) => [a[0] + b[0], a[1] + b[1]],
+                subtract: (a, b) => [a[0] - b[0], a[1] - b[1]],
+                multiply: (a, b) => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]],
+            };
+            const mapExponent = {};
+            const exponent = (k, N) => {
+              const x = -2 * Math.PI * (k / N);
+              if (!mapExponent[N]) mapExponent[N] = {};
+              if (!mapExponent[N][k]) mapExponent[N][k] = [Math.cos(x), Math.sin(x)];
+              return mapExponent[N][k];
+            };
+            function fft_recursive(vector) {
+                let X = [], N = vector.length;
+                if (N == 1) {
+                    if (Array.isArray(vector[0])) return [[vector[0][0], vector[0][1]]];
+                    return [[vector[0], 0]];
+                }
+                const X_evens = fft_recursive(vector.filter((_, i) => i % 2 == 0));
+                const X_odds  = fft_recursive(vector.filter((_, i) => i % 2 == 1));
+                for (let k = 0; k < N / 2; k++) {
+                  let t = X_evens[k];
+                  let e = complex.multiply(exponent(k, N), X_odds[k]);
+                  X[k] = complex.add(t, e);
+                  X[k + (N / 2)] = complex.subtract(t, e);
+                }
+                return X;
+            }
+            exports.fft = fft_recursive;
+            exports.ifft = function(signal) {
+                const csignal = signal.map(c => [c[1], c[0]]);
+                const ps = fft_recursive(csignal);
+                return ps.map(p => [p[1] / ps.length, p[0] / ps.length]);
+            };
+        })(FFT);
+
+        function fft2d(matrix) {
+            const rows = matrix.map(row => FFT.fft(row.map(x => [x, 0])));
+            const n = rows[0].length;
+            for (let j = 0; j < n; j++) {
+                const col = FFT.fft(rows.map(row => row[j]));
+                for (let i = 0; i < n; i++) { rows[i][j] = col[i]; }
+            }
+            return rows;
+        }
+        function ifft2d(matrix) {
+            const rows = matrix.map(row => FFT.ifft(row));
+            const n = rows[0].length;
+            for (let j = 0; j < n; j++) {
+                const col = FFT.ifft(rows.map(row => row[j]));
+                for (let i = 0; i < n; i++) { rows[i][j] = col[i]; }
+            }
+            return rows.map(row => row.map(c => c[0]));
+        }
+
+        // --- Simulation State & Data ---
+        let pristineCMBData = null;
+        let defectSignalData = null;
+        let showingDefectOnly = false;
+        const MAP_SIZE = 256;
+        const SIM_STATE = { noiseLevel: 1.0, redshift: 550 };
+
+        // --- CMB Generation ---
+        function getCMBPower(l) {
+            if (l < 2) return 0;
+            const peak = (l_val, l_peak, w_peak, h_peak) => h_peak * Math.exp(-Math.pow(l_val - l_peak, 2) / (2 * w_peak * w_peak));
+            const sw_plateau = l < 40 ? 0.2 : 0;
+            const damping = 1 / (1 + Math.exp((l - 1200) / 400));
+            const acoustic_peaks = peak(l, 220, 50, 1.0) + peak(l, 530, 60, 0.4) + peak(l, 800, 70, 0.2);
+            return (acoustic_peaks + sw_plateau) * damping;
+        }
+
+        function generatePristineCMB(size) {
+            const k_space = Array(size).fill(0).map(() => Array(size));
+            const center = size / 2;
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const l = Math.sqrt(Math.pow(x - center, 2) + Math.pow(y - center, 2));
+                    const power = Math.sqrt(getCMBPower(l));
+                    const u1 = Math.random(), u2 = Math.random();
+                    const rand_norm = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+                    const phase = Math.random() * 2 * Math.PI;
+                    k_space[y][x] = [power * rand_norm * Math.cos(phase), power * rand_norm * Math.sin(phase)];
+                }
+            }
+            for (let y = 1; y < size / 2; y++) {
+                for (let x = 1; x < size / 2; x++) {
+                    k_space[y][x] = k_space[size - y][size - x].map(v => -v);
+                }
+            }
+            return ifft2d(k_space);
+        }
+
+        function renderCMBMap(mapData, canvas) {
+            const ctx = canvas.getContext('2d');
+            const size = mapData.length;
+            canvas.width = size; canvas.height = size;
+            const imageData = ctx.createImageData(canvas.width, canvas.height);
+            let min = Infinity, max = -Infinity;
+            mapData.flat().forEach(v => { if (v < min) min = v; if (v > max) max = v; });
+            const range = max - min || 1;
+
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const val = mapData[y][x];
+                    const scaled = (val - min) / range;
+                    let r,g,b;
+                    if(scaled < 0.5) { r=0; g=0; b = 255 * (1 - scaled*2); }
+                    else { r = 255 * ((scaled - 0.5)*2); g=0; b=0; }
+                    const idx = (y * size + x) * 4;
+                    imageData.data[idx]=r; imageData.data[idx+1]=g; imageData.data[idx+2]=b; imageData.data[idx+3]=255;
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // --- Data Analysis ---
+        function calculateAndDrawPowerSpectrum(mapData, canvas) { const ctx=canvas.getContext('2d');canvas.width=512,canvas.height=256,ctx.fillStyle="#010409",ctx.fillRect(0,0,canvas.width,canvas.height);const k=fft2d(mapData),size=k.length,center=size/2,powerSpec=new Array(center).fill(0),counts=new Array(center).fill(0);for(let y=0;y<size;y++)for(let x=0;x<size;x++){const l=Math.floor(Math.sqrt(Math.pow(x-center,2)+Math.pow(y-center,2)));if(l<center)powerSpec[l]+=k[y][x][0]*k[y][x][0]+k[y][x][1]*k[y][x][1],counts[l]++}powerSpec.forEach((v,i)=>{if(counts[i]>0)powerSpec[i]/=counts[i]});ctx.strokeStyle="white",ctx.beginPath(),ctx.moveTo(0,canvas.height-20),ctx.lineTo(canvas.width,canvas.height-20),ctx.stroke();const maxL=400,logMaxL=Math.log10(maxL),maxPower=Math.max(...powerSpec.slice(2,maxL));if(!maxPower)return;ctx.strokeStyle="var(--accent-color)",ctx.beginPath();for(let l=2;l<maxL;l++){const x=Math.log10(l)/logMaxL*canvas.width,y=canvas.height-20-powerSpec[l]/maxPower*(canvas.height-20);2===l?ctx.moveTo(x,y):ctx.lineTo(x,y)}ctx.stroke()}
+        function calculateFNL(mapData) { const flat=mapData.flat(),mean=flat.reduce((a,b)=>a+b,0)/flat.length,stdDev=Math.sqrt(flat.map(x=>Math.pow(x-mean,2)).reduce((a,b)=>a+b,0)/flat.length);if(!stdDev)return;document.getElementById('fnl-readout').textContent=(flat.map(x=>Math.pow((x-mean)/stdDev,3)).reduce((a,b)=>a+b,0)/flat.length*100).toFixed(2)}
+
+        // --- Defect Imprinting ---
+        function imprintString(x1,y1,x2,y2,tension){let dx=Math.abs(x2-x1),sx=x1<x2?1:-1,dy=-Math.abs(y2-y1),sy=y1<y2?1:-1,err=dx+dy,e2;for(;;){if(x1>=0&&x1<MAP_SIZE&&y1>=0&&y1<MAP_SIZE){defectSignalData[y1][x1]+=tension}if(x1===x2&&y1===y2)break;e2=2*err,e2>=dy&&(err+=dy,x1+=sx),e2<=dx&&(err+=dx,y1+=sy)}}
+        function renderFinalMap() { if(!pristineCMBData)return;const finalMap=pristineCMBData.map((row,i)=>row.map((val,j)=>val*SIM_STATE.noiseLevel+defectSignalData[i][j]));const mapToRender=showingDefectOnly?defectSignalData:finalMap;renderCMBMap(mapToRender,document.getElementById('cmb-map-canvas'));calculateAndDrawPowerSpectrum(finalMap,document.getElementById('power-spectrum-canvas'));calculateFNL(finalMap)}
+
+        // --- Main ---
+        document.getElementById('generate-cmb-btn').addEventListener('click',()=> { document.getElementById('live-commentary').textContent='Generating CMB map...';setTimeout(()=>{pristineCMBData=generatePristineCMB(MAP_SIZE),defectSignalData=Array(MAP_SIZE).fill(0).map(()=>Array(MAP_SIZE).fill(0));renderFinalMap(),document.getElementById('live-commentary').textContent='Pristine CMB map generated. Click and drag on the map to draw defects.'},50)});
+        let drawing=!1,lastPos={x:0,y:0};const cmbCanvas=document.getElementById('cmb-map-canvas');cmbCanvas.addEventListener('mousedown',e=>{if(!pristineCMBData)return;drawing=!0;const r=cmbCanvas.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*cmbCanvas.width;const y=(e.clientY-r.top)/r.height*cmbCanvas.height;lastPos={x:x,y:y}});cmbCanvas.addEventListener('mousemove',e=>{if(!drawing)return;const r=cmbCanvas.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*cmbCanvas.width;const y=(e.clientY-r.top)/r.height*cmbCanvas.height;const n={x:x,y:y},t=Math.pow(10,parseFloat(document.getElementById('tension-slider').value)),s=1-SIM_STATE.redshift/1100;imprintString(Math.floor(lastPos.x),Math.floor(lastPos.y),Math.floor(n.x),Math.floor(n.y),t*1e8*s),lastPos=n,renderFinalMap()});cmbCanvas.addEventListener('mouseup',()=>{drawing=!1}),cmbCanvas.addEventListener('mouseleave',()=>{drawing=!1});
+        document.getElementById('tension-slider').addEventListener('input',e=>{document.getElementById('tension-readout').textContent=`1.0e${parseFloat(e.target.value).toFixed(1)}`});
+        document.getElementById('subtract-map-btn').addEventListener('click',()=>{showingDefectOnly=!showingDefectOnly,renderFinalMap()});
+        document.getElementById('noise-slider').addEventListener('input',e=>{SIM_STATE.noiseLevel=parseFloat(e.target.value)/100,document.getElementById('noise-readout').textContent=`${e.target.value}%`,renderFinalMap()});
+        document.getElementById('redshift-slider').addEventListener('input',e=>{SIM_STATE.redshift=parseFloat(e.target.value),document.getElementById('redshift-readout').textContent=`z=${e.target.value}`,renderFinalMap()});
+    </script>
+</body>
+</html>
