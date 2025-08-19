@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Architecture - Hybrid Defects & Network Evolution</title>
+    <style>
+        :root {
+            --primary-bg-color: #0a0a14;
+            --secondary-bg-color: #1c1c2c;
+            --tertiary-bg-color: #2d2d44;
+            --primary-text-color: #e8e8ff;
+            --secondary-text-color: #a8a8cc;
+            --accent-color: #61dafb;
+            --accent-color-hover: #91eaff;
+            --border-color: #4a4a7a;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --code-font-family: 'Courier New', Courier, monospace;
+        }
+        body { background-color: var(--primary-bg-color); color: var(--primary-text-color); font-family: var(--font-family); margin: 0; padding: 1em; overflow-x: hidden; }
+        #app { display: flex; flex-direction: column; height: 100%; }
+        header { text-align: center; padding-bottom: 1em; border-bottom: 2px solid var(--border-color); }
+        h1, h2, h3 { color: var(--accent-color); font-weight: 300; }
+        .main-container { display: flex; flex-wrap: wrap; gap: 1em; padding-top: 1em; flex: 1; }
+        .simulation-column { flex: 3; min-width: 600px; display: flex; flex-direction: column; gap: 1em; }
+        .info-column { flex: 2; min-width: 450px; background-color: var(--secondary-bg-color); border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; overflow: hidden; }
+        .simulation-window { position: relative; background-color: #000; border: 2px solid var(--border-color); border-radius: 8px; overflow: hidden; width: 100%; height: 60vh; }
+        #simulationCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .controls-container { background-color: var(--secondary-bg-color); padding: 1em; border-radius: 8px; border: 1px solid var(--border-color); }
+        .control-group { margin-bottom: 1.5em; }
+        .control-group label { display: block; margin-bottom: 0.5em; font-size: 0.9em; color: var(--secondary-text-color); }
+        .control-group label .value-display { color: var(--primary-text-color); font-weight: bold; float: right; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+        button { background-color: var(--accent-color); color: var(--primary-bg-color); border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: background-color 0.3s ease; }
+        button:hover { background-color: var(--accent-color-hover); }
+        .tab-buttons { display: flex; flex-wrap: wrap; background-color: var(--tertiary-bg-color); }
+        .tab-button { padding: 0.8em 1em; cursor: pointer; border: none; background-color: transparent; color: var(--secondary-text-color); font-size: 0.9em; transition: all 0.3s ease; border-bottom: 3px solid transparent; }
+        .tab-button.active { color: var(--primary-text-color); background-color: var(--secondary-bg-color); border-bottom: 3px solid var(--accent-color); }
+        .tab-content { padding: 1.5em; overflow-y: auto; flex: 1; height: 75vh; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+        .tab-pane p, .tab-pane li { line-height: 1.7; text-align: justify; }
+        .tab-pane ul { padding-left: 20px; }
+        .qa-item { margin-bottom: 2em; }
+        .qa-item strong { color: var(--accent-color); display: block; margin-bottom: 0.5em; }
+        code { background-color: var(--primary-bg-color); color: var(--accent-color); padding: 0.2em 0.4em; border-radius: 4px; font-family: var(--code-font-family); }
+        .data-panel { background-color: var(--tertiary-bg-color); border: 1px solid var(--border-color); border-radius: 5px; padding: 1em; margin-top: 1em; }
+        .data-panel h3 { margin-top: 0; font-size: 1.1em; }
+        .data-item { display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 0.5em; }
+        .plot-container { width: 100%; height: 250px; margin-top: 1em; }
+    </style>
+    <!-- Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Header and all HTML content -->
+        <header>
+            <h1>Cosmic Architecture: Hybrid Defects & Network Evolution</h1>
+        </header>
+        <main class="main-container">
+            <div class="simulation-column">
+                <div id="simulationContainer" class="simulation-window"><canvas id="simulationCanvas"></canvas></div>
+                <div class="controls-container">
+                    <h3>Simulation Controls</h3>
+                    <div class="control-group"><label>Symmetry Breaking Sequence:</label><p style="font-size: 0.8em; color: var(--secondary-text-color); margin-top: -10px;">(Functionality to be implemented - this is a UI placeholder)</p><select id="transition1"><option>G -> H (creates Monopoles)</option><option>G -> H (creates Strings)</option><option>G -> H (creates Walls)</option></select><select id="transition2"><option>H -> K (creates Strings)</option><option>H -> K (creates Walls)</option></select></div>
+                    <div class="control-group"><button id="generateNetwork">Run Formation Simulation</button></div>
+                    <div class="control-group"><label for="hubbleParam">Universe Expansion Rate (H): <span class="value-display" id="hubbleValue">0.1</span></label><input type="range" id="hubbleParam" min="0" max="1" step="0.01" value="0.1"></div>
+                    <div class="control-group"><label>Relative Tensions:</label><label for="stringTension">String (μ): <span class="value-display" id="stringValue">1.0</span></label><input type="range" id="stringTension" min="0.1" max="10" step="0.1" value="1.0"><label for="wallTension">Wall (σ): <span class="value-display" id="wallValue">5.0</span></label><input type="range" id="wallTension" min="0.1" max="10" step="0.1" value="5.0"></div>
+                </div>
+            </div>
+            <div class="info-column">
+                <div class="tab-buttons"><button class="tab-button active" data-tab="guide">Field Guide</button><button class="tab-button" data-tab="physics">Core Theory</button><button class="tab-button" data-tab="dashboard">Dashboard</button><button class="tab-button" data-tab="extensions">Advanced</button><button class="tab-button" data-tab="qa">Q&A</button></div>
+                <div class="tab-content">
+                    <div id="guide" class="tab-pane active">
+                        <h2>Field Guide to Hybrid Defects</h2>
+                        <p>Welcome to the cosmic architecture firm! You are about to create and observe some of the most bizarre and fundamental structures predicted by modern physics. The 3D view shows a piece of the early universe. After you design the "rules" of physics with the controls, press <strong>Run Formation Simulation</strong> to see what emerges.</p>
+                        <h3>What Am I Seeing?</h3>
+                        <ul>
+                            <li><strong style="color:red;">Red Points:</strong> These are <strong>Monopoles</strong> (or anti-monopoles). Think of them as isolated points where the fabric of spacetime is "stuck" in a high-energy state, like a knot in a fisherman's net.</li>
+                            <li><strong style="color:blue;">Blue Tubes:</strong> These are <strong>Cosmic Strings</strong>, one-dimensional lines of trapped energy. They are like the cosmic string from the previous simulation, but now they can interact with other defects.</li>
+                            <li><strong style="color:green;">Green Sheets:</strong> These are <strong>Domain Walls</strong>, two-dimensional surfaces that separate different "regions" of vacuum. Think of them as the boundary between two ice crystals that froze with different alignments.</li>
+                        </ul>
+                        <p>The magic happens when these defects are forced to coexist. Here are the key hybrid structures to look for:</p>
+                        <h4>Monopoles on Strings ("Beads on a String")</h4>
+                        <p><strong>Signature:</strong> A blue tube that starts and ends on red points.<br><strong>Formation:</strong> This happens when a symmetry breaking first creates monopoles, and a subsequent breaking then creates strings. The strings might be forced to spawn connecting the pre-existing monopoles.<br><strong>Evolution:</strong> The string has tension—it wants to shrink! It will pull the monopole and anti-monopole together along its length, causing them to accelerate towards each other and eventually annihilate in a burst of energy. This is a primary way for monopoles to be eliminated from the universe.</p>
+                        <h4>Strings Bounding Walls ("Walls ending on Strings")</h4>
+                        <p><strong>Signature:</strong> A green, sheet-like wall whose edges are defined by blue strings.<br><strong>Formation:</strong> This occurs when the first transition creates domain walls, but a later transition creates strings in a way that they are topologically required to be the boundaries of the walls.<br><strong>Evolution:</strong> This is one of the most violent and important processes. A domain wall has an immense surface tension, like a stretched rubber sheet. It wants to collapse. The only thing holding it open is the string network at its boundary. The wall's tension will pull relentlessly on the strings, forcing the entire "bag" to shrink. This is a very efficient way to get rid of domain walls, which would otherwise dominate the universe's energy and cause a cosmological catastrophe.</p>
+                        <h4>Necklaces</h4>
+                        <p><strong>Signature:</strong> A cosmic string loop (blue) that has multiple monopole/anti-monopole pairs (red beads) trapped on it.<br><strong>Formation:</strong> A complex symmetry-breaking chain can produce this structure. Imagine a string forming, and then a later transition sprinkles monopoles onto the scene, but some get topologically "stuck" on the string.<br><strong>Evolution:</strong> This leads to a rich dynamic. The overall string loop will try to shrink due to its own tension, while the beads (monopoles and anti-monopoles) will slide along the string towards each other to annihilate. The entire structure writhes, shrinks, and sparkles with annihilation events.</p>
+                    </div>
+                    <div id="physics" class="tab-pane">
+                        <h2>The Physics of Nested Symmetries</h2>
+                        <h3>Part A: Group Theory for Poets - Homotopy</h3>
+                        <p>Why do these defects form at all? The answer lies in a beautiful branch of mathematics called <strong>homotopy theory</strong>. It sounds complex, but the core idea is wonderfully intuitive. It’s a way of classifying shapes and, in our case, the "shape" of the possible states of the universe's quantum fields.</p>
+                        <p>Let's start with an analogy. Imagine the state of a quantum field at any point in space is described by a little arrow that can point in any direction. The collection of all possible directions this arrow can point is its "vacuum manifold," which we'll call V. For an arrow free to point anywhere in 3D, V is the surface of a sphere. For a simple 2D arrow, V is a circle.</p>
+                        <p>Now, imagine the Big Bang. The universe is incredibly hot, and these arrows are pointing in random directions everywhere. As the universe cools, these arrows want to align with their neighbors. But they can't always succeed perfectly. A "defect" is formed when a region of space gets "stuck" in a configuration that can't be smoothed out. Homotopy theory tells us what kinds of "stuck-ness" are possible.</p>
+                        <h4>π₂(V) - Monopoles from Spheres</h4>
+                        <p><strong>The Question:</strong> Can you wrap a sphere with another sphere in a way that can't be undone?<br><strong>Analogy:</strong> Imagine our vacuum manifold V is itself the surface of a sphere (like the possible directions of our 3D arrow). Now, take a sphere in real, physical space and try to map every point on its surface to a point on the V-sphere. You can do this trivially (map the whole physical sphere to the "north pole" of V), which can be "shrunk" to a single point. But you can also wrap the physical sphere completely around the V-sphere (e.g., physical north pole maps to V's north pole, south to south, etc.). This configuration is a knot! You cannot untangle it or shrink it down to a single point without "tearing" the field. This un-shrinkable wrapping is a <strong>monopole</strong>. It's a point-like defect whose existence is guaranteed by the topology of the fields surrounding it. The second homotopy group, π₂(V), counts how many distinct ways you can wrap a sphere with V. If π₂(V) is not zero, monopoles can form.</p>
+                        <h4>π₁(V) - Strings from Loops</h4>
+                        <p><strong>The Question:</strong> Can you draw a loop on a surface that can't be shrunk to a point?<br><strong>Analogy:</strong> Now imagine our vacuum manifold V is the surface of a doughnut (a torus). If you draw a small loop on the surface, you can shrink it to a point. But what if you draw a loop that goes *around* the hole of the doughnut? You can't shrink that loop to a point without it falling into the hole or leaving the surface. It's topologically "stuck." This is a cosmic string. In the early universe, if the field values along a loop in real space map to a path on V that goes around such a "hole," the loop in real space will trap a line of energy inside it. This is a <strong>cosmic string</strong>. The first homotopy group, π₁(V), counts the number of "holes" or independent, non-shrinkable loops in V. If π₁(V) is not zero, strings can form.</p>
+                        <h4>π₀(V) - Walls from Disconnected Regions</h4>
+                        <p><strong>The Question:</strong> Can you draw a path between two separate regions?<br><strong>Analogy:</strong> This is the simplest case. Imagine our vacuum manifold V isn't one continuous shape, but two separate, disconnected islands. In the early universe, some regions of space might have their fields "settle" on Island A, while neighboring regions settle on Island B. The boundary between them is a defect. It's a surface where the field has to violently change from one state to the other. This is a <strong>domain wall</strong>. The zeroth homotopy group, π₀(V), simply counts the number of disconnected pieces of V. If π₀(V) is greater than one, domain walls can form.</p>
+                        <h3>Part B: Sequential Breaking Explained</h3>
+                        <p>Hybrid defects are born when one of these situations is created by a subsequent phase transition. Let's take the "walls ending on strings" example.<br>1. **High Temperature:** The universe is in a highly symmetric state G. The vacuum manifold V₁ is just a single point. No defects.<br>2. **First Transition (T₁):** The universe cools, and the symmetry breaks to H. This transition has a disconnected vacuum manifold (π₀(V₂) > 1). As different parts of the universe settle, they create vast <strong>domain walls</strong> separating them. This is a cosmological disaster if it's the end of the story.<br>3. **Second Transition (T₂):** The universe cools further, and another symmetry breaking occurs, H -> K. But this breaking only happens *inside* the domains, not on the walls themselves. Let's say this new transition has a vacuum manifold V₃ with a non-shrinkable loop (π₁(V₃) ≠ 0). This means strings can form. However, the vacuum state on one side of the wall is different from the other. A string forming near a wall finds itself in a strange situation. The topology dictates that the wall must end. The only thing it can end on is the newly formed string. The string becomes the boundary of the wall. This creates a stable hybrid defect, but one with a built-in self-destruct mechanism: the wall tension pulls the string boundary inward, causing the whole structure to collapse and annihilate.</p>
+                        <h3>Part C: Cosmological Relevance - Solving the Wall Problem</h3>
+                        <p>Domain walls are a theoretical headache. A single, stable domain wall stretching across the observable universe would contain so much energy that its gravity would completely dominate all other matter and energy, leading to a universe very different from the one we observe. This is the "domain wall problem." Hybrid defects provide a beautiful escape route. If domain walls are produced at an early phase transition, but a later transition produces strings that the walls can end on, then the walls are not infinite. They form finite sheets, bags, and bubbles whose boundaries are string loops. The wall's immense surface tension, instead of being a problem, becomes the solution. It acts like the surface tension of a soap bubble, pulling the entire structure inward. The bag shrinks, the strings collide, and the entire wall structure efficiently annihilates itself long before it can cause any cosmological trouble, leaving behind only gravitational waves and high-energy particles as its faint echo.</p>
+                    </div>
+                    <div id="dashboard" class="tab-pane">
+                        <h2>Network Analysis Dashboard</h2>
+                        <div class="data-panel">
+                            <h3>Defect Inventory</h3>
+                            <div class="data-item"><span class="label">Free Monopoles:</span><span class="value" id="monoCount">0</span></div>
+                            <div class="data-item"><span class="label">Free Strings (length):</span><span class="value" id="stringCount">0 m</span></div>
+                            <div class="data-item"><span class="label">Wall Area:</span><span class="value" id="wallCount">0 m²</span></div>
+                        </div>
+                        <div class="data-panel">
+                            <h3>Energy Budget</h3>
+                            <div class="plot-container"><canvas id="energyPlot"></canvas></div>
+                        </div>
+                        <div class="data-panel">
+                            <h3>Scaling Solution Tracker</h3>
+                             <p style="font-size: 0.8em; color: var(--secondary-text-color);">A stable string network should reach a "scaling solution" where its characteristic length L grows in proportion to time t (L/t = constant). This plot tracks that ratio.</p>
+                            <div class="plot-container"><canvas id="scalingPlot"></canvas></div>
+                        </div>
+                    </div>
+                    <div id="extensions" class="tab-pane">
+                        <h2>Advanced Extensions & Maximal Depth</h2>
+                        <p>This simulation models the classical evolution of these networks. But the universe is quantum mechanical and relativistic. Here, we explore the deeper questions.</p>
+                        <h3>Quantum Tunneling Annihilation</h3>
+                        <p>In the classical view, a monopole and an anti-monopole beaded on a string must physically slide along the string until they meet to annihilate. However, quantum mechanics offers a bizarre shortcut: <strong>tunneling</strong>. If the two particles are close enough, there is a finite probability that they can tunnel "through" the energy barrier of the string segment separating them and annihilate without ever traversing the distance. This probability would depend sensitively on their separation distance (d) and the string tension (μ). A simplified model for the tunneling rate (Γ) might be an exponential suppression: <code>Γ ∝ exp(-k * μ * d²)</code>, where k is a constant. This means that for light strings or short distances, tunneling could become a significant annihilation channel, accelerating the decay of "necklace" defects beyond the classical prediction and potentially altering the final relic abundance of monopoles.</p>
+                        <h3>Gravitational Wave Signatures</h3>
+                        <p>The evolution of these structures would produce a storm of gravitational waves (GWs). The signal would be unique. Unlike the clean, chirping sine wave of a black hole merger, a hybrid defect network would produce a "stochastic background" of GWs from the superposition of many events. However, the most violent events would stand out. The collapse of a large domain wall bounded by strings would be a particularly spectacular source. The signal would not be a chirp, but a powerful, short-lived "burst" of gravitational waves, potentially with a characteristic frequency spectrum related to the final size of the collapsing bag. Detecting such a burst would be a smoking gun for this type of physics, providing a snapshot of a phase transition in the infant universe. The spectrum would be different from that of a simple string network (which produces GWs from shrinking loops and cusps) and completely distinct from compact binary mergers.</p>
+                        <h3>Baryogenesis Potential</h3>
+                        <p>Where did all the matter in the universe come from? This is the problem of baryogenesis. To create more matter than anti-matter, you need three ingredients (the "Sakharov conditions"): 1) Baryon number violation, 2) C and CP symmetry violation, and 3) Out-of-equilibrium interactions. The chaotic, violent annihilation of a hybrid defect network is a prime location for all three. The core of a defect is a region of high-energy, symmetric vacuum where baryon-number-violating processes, forbidden today, could run rampant. The dynamics of the collapse are intrinsically out-of-equilibrium. If the underlying theory also has charge-conjugation (C) and charge-parity (CP) violation, then these annihilation events could systematically produce more quarks than anti-quarks. You could add a parameter to this simulation representing the 'CP-violating bias' (ε) per annihilation. The total baryon asymmetry would then be the integral over all annihilation events in the network's history, multiplied by ε. Watching the network evolve and decay would be a direct simulation of the universe generating its own matter.</p>
+                    </div>
+                    <div id="qa" class="tab-pane">
+                        <h2>In-Depth Q&A</h2>
+                        <div class="qa-item">
+                            <strong>1. Why do we need homotopy theory? Can't we just use energy arguments?</strong>
+                            <p>Energy arguments are crucial for understanding how defects *evolve*, but they can't tell you which defects are *possible*. The stability of a topological defect is not guaranteed by a simple energy barrier. Its stability is absolute, enforced by the global structure of the theory's vacuum states. Think of the loop around the doughnut hole in the π₁ analogy. There is no "energy hill" you can push the loop over to make it shrink; its path is obstructed by a fundamental feature of the space itself. Homotopy theory is the mathematical tool for identifying these fundamental obstructions. It answers the question: "Given the set of all possible ground states (the vacuum manifold), what kinds of field configurations can get 'knotted up' in a way that is impossible to undo?" Without homotopy, we would be blindly guessing which symmetries produce which defects. It provides the rigorous, predictive framework.</p>
+                        </div>
+                        <div class="qa-item">
+                            <strong>2. What is a real-world example of a topological defect?</strong>
+                            <p>While we haven't confirmed cosmic defects, they are not just mathematical fantasy. We see them in condensed matter systems all the time! A perfect analogy for a cosmic string is a "vortex line" in a superconductor or a superfluid. When liquid helium is cooled below its lambda point, it becomes a superfluid. If you rotate a bucket of superfluid helium, it cannot rotate like a normal fluid. Instead, the rotation is concentrated into tiny, quantized "tornadoes" called vortex lines. Inside the core of each vortex, the helium is not superfluid; it's stuck in the "normal" state. The phase of the quantum wavefunction changes as you go in a loop around the vortex line. This is a direct, laboratory analogue of a cosmic string, where the phase of a cosmic field (like the Higgs field) changes as you go around the string. The mathematics describing both is identical (involving π₁(V)). Similarly, defects analogous to domain walls appear in liquid crystals and magnetic materials.</p>
+                        </div>
+                        <div class="qa-item">
+                            <strong>3. Could we ever detect a monopole?</strong>
+                            <p>Detecting a magnetic monopole would be a monumental, Nobel-prize-winning discovery. Theories predict they would be incredibly massive and carry a quantized magnetic charge. An experiment to find one might look for a particle that causes a unique, persistent current in a superconducting coil as it passes through. Unlike a normal charged particle, which induces a current only as it enters and leaves, the monopole's passage would change the magnetic flux permanently. Several experiments have been built to look for this signature. In 1982, the physicist Blas Cabrera reported a single event consistent with a monopole passing through his detector. However, the event was never replicated, and it is widely considered to have been an anomaly or instrumental artifact. The search continues, but if monopoles were formed in the early universe, they are expected to be incredibly rare today, either because they were diluted by cosmic inflation or because they efficiently annihilated via mechanisms like the "beads on a string" dynamic simulated here.</p>
+                        </div>
+                        <div class="qa-item">
+                            <strong>4. If a string has tension, why doesn't it just break?</strong>
+                            <p>A cosmic string's tension is a measure of its energy per unit length. Unlike a physical rope, which is made of atoms that can be pulled apart, a cosmic string is a feature of the vacuum itself. It cannot "break" in the conventional sense because there is nothing more fundamental for it to break into. It is a stable, non-local structure. The only way for a string to disappear is to lose its energy. A closed loop of string can do this by shrinking until it annihilates itself completely. An "infinite" string, however, cannot simply vanish. It can, however, interact with other strings. When two strings cross, they can "intercommute," swapping partners and changing the topology of the network. This is the string equivalent of "breaking and reconnecting," and it's a crucial part of how the network evolves towards a stable "scaling solution."</p>
+                        </div>
+                        <div class="qa-item">
+                            <strong>5. What does 'symmetry breaking' actually mean in this context?</strong>
+                            <p>In physics, "symmetry" means that the laws of physics look the same even if you make a certain change. For example, rotational symmetry means the laws of physics don't care which way you are facing. In the very hot, early universe, the fundamental forces are believed to have been unified, described by a single, highly symmetric mathematical group (G). The equations governing all fields had this symmetry. As the universe cooled, it underwent "phase transitions," like water freezing into ice. During these transitions, the quantum fields "chose" a specific direction or state to settle into, out of many equally valid possibilities. This choice "broke" the original symmetry. For instance, if a field could point anywhere on a sphere but chose to point "north," the rotational symmetry is broken—the "north" direction is now special. This process of the universe settling into a specific ground state that has less symmetry than the underlying laws of physics is called spontaneous symmetry breaking. It's the fundamental mechanism responsible for the existence of different forces and particles, and for the formation of topological defects.</p>
+                        </div>
+                        <div class="qa-item">
+                            <strong>6. Why is the Kibble mechanism important for defect formation?</strong>
+                            <p>The Kibble mechanism is the causal argument for why defects *must* form during a rapid phase transition. As the universe cools and breaks a symmetry, this doesn't happen instantly and uniformly everywhere. The speed of light limits how fast information can travel. So, one region of the universe might "choose" to settle into ground state A, while a causally disconnected region (one too far away for light to have traveled between them since the beginning of the transition) might independently choose ground state B. When these two regions expand and eventually meet, their fields have to somehow reconcile. If states A and B are topologically distinct, there may be no smooth way to transition from one to the other. The boundary between them will be forced to contain a defect—a domain wall, string, or monopole—as a permanent "scar" of this causal mismatch. The Kibble mechanism predicts a certain initial density of defects based on the cooling rate and the correlation length of the fields at the time of the transition.</p>
+                        </div>
+                        <div class="qa-item">
+                            <strong>7. What is 'Hubble Friction'?</strong>
+                            <p>Hubble friction is not a true frictional force like air resistance. It is a damping term that arises naturally from the expansion of the universe. Imagine a defect, like a string loop, moving at a certain velocity. As the universe expands, all distances are stretched. This means the momentum of the string is constantly being "diluted" or redshifted by the expansion. From the perspective of an equation of motion, this appears as a velocity-dependent damping term, `F = -H * v`, where H is the Hubble parameter (the expansion rate). This term is crucial for the evolution of the network. It slows down the defects, preventing them from reaching the speed of light and ensuring that the network can relax into a stable "scaling solution" where its own shrinking and annihilation dynamics are in equilibrium with the stretching of the universe.</p>
+                        </div>
+                        <div class="qa-item">
+                            <strong>8. How are the relative tensions determined in a real theory?</strong>
+                            <p>The tensions (or masses) of topological defects are not arbitrary parameters. They are predicted by the underlying quantum field theory. The tension of a defect is roughly proportional to the energy scale of the symmetry breaking that created it, squared. For example, the tension of a GUT-scale string (from a Grand Unified Theory phase transition) would be immense, around μ ≈ (10¹⁶ GeV)². A string from a lower-energy electroweak phase transition would have a much lower tension, μ ≈ (100 GeV)². Therefore, in a theory with a sequence of breakings, G -> H -> K, the defects from the first transition (G->H) will be enormously more energetic and tense than the defects from the second (H->K). In our simulation, this would correspond to setting the tension slider for the first-generation defects much higher than for the second-generation ones. This hierarchy of scales is what drives much of the interesting hybrid dynamics, like heavy walls being able to easily collapse lighter string boundaries.</p>
+                        </div>
+                        <div class="qa-item">
+                            <strong>9. Can hybrid defects decay into each other?</strong>
+                            <p>Yes, and this is a key feature of their evolution. A more massive, higher-energy defect can be unstable and decay into lower-energy defects. For example, a very thick, high-tension string formed at an early, high-energy phase transition might be unstable to a later, lower-energy transition happening *inside* its core. This could lead to the string effectively splitting into several lighter strings. A classic example is a "semilocal string," which has no topological protection but is stable for energetic reasons. It can decay by "unspooling" from its ends. The most dramatic decay is the collapse of a wall-string hybrid. Here, the 2D wall defect, which stores enormous energy, decays entirely into 1D string defects, which then themselves decay into particles and gravitational waves. The entire process is a cascade from higher-dimensional, higher-energy defects to lower-dimensional, lower-energy ones, and finally to fundamental particles.</p>
+                        </div>
+                        <div class="qa-item">
+                            <strong>10. What is a 'scaling solution' and why is it important?</strong>
+                            <p>A scaling solution is a state of dynamic equilibrium for a defect network. In an expanding universe, two competing processes are at play: the cosmic expansion stretches the network, lowering its density, while the network's own dynamics (shrinking loops, annihilation) actively remove defects. A scaling solution is reached when these two processes fall into perfect balance. The network's characteristic length scale (L, the typical distance between strings or defects) grows in direct proportion to the cosmic time horizon (t). This means the overall energy density of the network remains a constant fraction of the total energy density of the universe. This is a crucial result. If the network did not scale, it would either be annihilated too quickly to be interesting or it would come to dominate the universe's energy, which is observationally ruled out. The existence of a stable scaling solution allows a defect network to survive from the early universe to the present day while never being cosmologically dominant, making it a plausible candidate for observation.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+        class Simulation {
+            constructor() {
+                this.scene = null; this.camera = null; this.renderer = null; this.controls = null; this.defectContainer = null;
+                this.container = document.getElementById('simulationContainer');
+                this.canvas = document.getElementById('simulationCanvas');
+                this.generateBtn = document.getElementById('generateNetwork');
+                this.hubbleParam = document.getElementById('hubbleParam').value;
+                this.stringTension = document.getElementById('stringTension').value;
+                this.wallTension = document.getElementById('wallTension').value;
+                this.simulationTime = 0; this.timeStep = 0.01; this.boxSize = 20;
+                this.defects = { monopoles: [], strings: [], walls: [] };
+                this.energyChart = null; this.scalingChart = null;
+                this.init();
+                this.animate();
+            }
+
+            init() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0a0a14);
+                const aspect = this.container.clientWidth / this.container.clientHeight;
+                this.camera = new THREE.PerspectiveCamera(75, aspect, 0.1, 1000);
+                this.camera.position.set(25, 25, 25);
+                this.camera.lookAt(0, 0, 0);
+                this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
+                this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(1, 1, 1);
+                this.scene.add(directionalLight);
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                const boxLines = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(this.boxSize, this.boxSize, this.boxSize)), new THREE.LineBasicMaterial({ color: 0x4a4a7a }));
+                this.scene.add(boxLines);
+                this.initCharts();
+                this.initEventListeners();
+            }
+
+            initEventListeners() {
+                window.addEventListener('resize', this.onWindowResize.bind(this));
+                this.generateBtn.addEventListener('click', this.onGenerate.bind(this));
+                document.getElementById('hubbleParam').addEventListener('input', (e) => { this.hubbleParam = e.target.value; document.getElementById('hubbleValue').textContent = parseFloat(this.hubbleParam).toFixed(2); });
+                document.getElementById('stringTension').addEventListener('input', (e) => { this.stringTension = e.target.value; document.getElementById('stringValue').textContent = parseFloat(e.target.value).toFixed(1); });
+                document.getElementById('wallTension').addEventListener('input', (e) => { this.wallTension = e.target.value; document.getElementById('wallValue').textContent = parseFloat(e.target.value).toFixed(1); });
+                const tabButtons = document.querySelectorAll('.tab-button');
+                const tabPanes = document.querySelectorAll('.tab-pane');
+                tabButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        tabButtons.forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        const tabId = button.getAttribute('data-tab');
+                        tabPanes.forEach(pane => { pane.id === tabId ? pane.classList.add('active') : pane.classList.remove('active'); });
+                    });
+                });
+            }
+
+            initCharts() {
+                const chartOptions = { scales: { x: { ticks: { color: '#a8a8cc' }, grid: { color: '#4a4a7a' } }, y: { ticks: { color: '#a8a8cc' }, grid: { color: '#4a4a7a' }, beginAtZero: true } }, plugins: { legend: { labels: { color: '#e8e8ff' } } }, animation: { duration: 0 } };
+                this.energyChart = new Chart(document.getElementById('energyPlot').getContext('2d'), { type: 'line', data: { labels: [], datasets: [ { label: 'Wall Energy', data: [], borderColor: 'rgba(0, 255, 119, 0.8)', tension: 0.1, pointRadius: 0 }, { label: 'String Energy', data: [], borderColor: 'rgba(0, 119, 255, 0.8)', tension: 0.1, pointRadius: 0 }, { label: 'Monopole Energy', data: [], borderColor: 'rgba(255, 0, 0, 0.8)', tension: 0.1, pointRadius: 0 } ] }, options: chartOptions });
+                this.scalingChart = new Chart(document.getElementById('scalingPlot').getContext('2d'), { type: 'line', data: { labels: [], datasets: [{ label: 'L/t (Scaling)', data: [], borderColor: '#61dafb', tension: 0.1, pointRadius: 0 }] }, options: chartOptions });
+            }
+
+            onWindowResize() { this.camera.aspect = this.container.clientWidth / this.container.clientHeight; this.camera.updateProjectionMatrix(); this.renderer.setSize(this.container.clientWidth, this.container.clientHeight); }
+
+            onGenerate() {
+                this.clearDefects();
+                this.simulationTime = 0;
+                this.energyChart.data.labels = [];
+                this.energyChart.data.datasets.forEach(dataset => dataset.data = []);
+                this.scalingChart.data.labels = [];
+                this.scalingChart.data.datasets[0].data = [];
+                this.initGrid();
+                const stringPaths = this.findStrings();
+                if (stringPaths.length > 0) { this.createDefectData(stringPaths); this.updateMeshes(); }
+            }
+
+            clearDefects() {
+                if (this.defectContainer) {
+                    while(this.defectContainer.children.length > 0){
+                        const object = this.defectContainer.children[0];
+                        if(object.geometry) object.geometry.dispose();
+                        if(object.material) object.material.dispose();
+                        this.defectContainer.remove(object);
+                    }
+                }
+                this.defects = { monopoles: [], strings: [], walls: [] };
+                if (!this.defectContainer) { this.defectContainer = new THREE.Group(); this.scene.add(this.defectContainer); }
+            }
+
+            initGrid() { this.gridSize = 12; this.grid = Array(this.gridSize).fill(null).map(() => Array(this.gridSize).fill(null).map(() => Array(this.gridSize).fill(null).map(() => new THREE.Vector3(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1).normalize()))); }
+
+            findStrings() {
+                const plaquettes = [];
+                for (let i = 0; i < this.gridSize - 1; i++) {
+                    for (let j = 0; j < this.gridSize - 1; j++) {
+                        for (let k = 0; k < this.gridSize - 1; k++) {
+                            if (this.isPlaquettePierced([this.grid[i][j][k], this.grid[i+1][j][k], this.grid[i+1][j+1][k], this.grid[i][j+1][k]])) plaquettes.push({i, j, k, dir: 'z'});
+                            if (this.isPlaquettePierced([this.grid[i][j][k], this.grid[i+1][j][k], this.grid[i+1][j][k+1], this.grid[i][j][k+1]])) plaquettes.push({i, j, k, dir: 'y'});
+                            if (this.isPlaquettePierced([this.grid[i][j][k], this.grid[i][j+1][k], this.grid[i][j+1][k+1], this.grid[i][j][k+1]])) plaquettes.push({i, j, k, dir: 'x'});
+                        }
+                    }
+                }
+                const scale = this.boxSize / this.gridSize, offset = this.boxSize / 2;
+                return plaquettes.map(p => {
+                    let center, end;
+                    if (p.dir === 'z') { center = new THREE.Vector3((p.i+0.5)*scale-offset, (p.j+0.5)*scale-offset, p.k*scale-offset); end = new THREE.Vector3(center.x, center.y, center.z + scale);
+                    } else if (p.dir === 'y') { center = new THREE.Vector3((p.i+0.5)*scale-offset, p.j*scale-offset, (p.k+0.5)*scale-offset); end = new THREE.Vector3(center.x, center.y + scale, center.z);
+                    } else { center = new THREE.Vector3(p.i*scale-offset, (p.j+0.5)*scale-offset, (p.k+0.5)*scale-offset); end = new THREE.Vector3(center.x + scale, center.y, center.z); }
+                    return [center, end];
+                });
+            }
+
+            isPlaquettePierced(vectors) {
+                let totalAngle = 0;
+                for (let i = 0; i < vectors.length; i++) {
+                    const v1 = vectors[i], v2 = vectors[(i + 1) % vectors.length];
+                    const a1 = Math.atan2(v1.y, v1.x), a2 = Math.atan2(v2.y, v2.x);
+                    let angleDiff = a2 - a1;
+                    if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                    if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                    totalAngle += angleDiff;
+                }
+                return Math.abs(totalAngle) > Math.PI;
+            }
+
+            createDefectData(stringPaths) {
+                let stringIdCounter = 0, monopoleIdCounter = 0;
+                stringPaths.forEach((path, index) => {
+                    const startMono = { id: monopoleIdCounter++, position: path[0].clone(), velocity: new THREE.Vector3(), force: new THREE.Vector3(), mesh: null };
+                    const endMono = { id: monopoleIdCounter++, position: path[1].clone(), velocity: new THREE.Vector3(), force: new THREE.Vector3(), mesh: null };
+                    const string = { id: stringIdCounter++, monopoles: [startMono.id, endMono.id], mesh: null };
+                    this.defects.monopoles.push(startMono, endMono);
+                    this.defects.strings.push(string);
+                    if (index === 0) this.defects.walls.push({ boundaryStringId: string.id, mesh: null });
+                });
+            }
+
+            updateMeshes() {
+                // This function now just creates meshes if they don't exist.
+                const monoGeom = new THREE.SphereGeometry(0.3, 16, 16);
+                const monoMat = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+                this.defects.monopoles.forEach(mono => {
+                    if (!mono.mesh) {
+                        mono.mesh = new THREE.Mesh(monoGeom, monoMat);
+                        this.defectContainer.add(mono.mesh);
+                    }
+                    mono.mesh.position.copy(mono.position);
+                });
+
+                const stringMat = new THREE.MeshPhongMaterial({ color: 0x0077ff });
+                this.defects.strings.forEach(str => {
+                    const mono1 = this.defects.monopoles.find(m => m.id === str.monopoles[0]);
+                    const mono2 = this.defects.monopoles.find(m => m.id === str.monopoles[1]);
+                    if (!mono1 || !mono2) return;
+                    const curve = new THREE.LineCurve3(mono1.position, mono2.position);
+                    if (!str.mesh) {
+                        str.mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 2, 0.1, 8, false), stringMat);
+                        this.defectContainer.add(str.mesh);
+                    } else {
+                        str.mesh.geometry.dispose();
+                        str.mesh.geometry = new THREE.TubeGeometry(curve, 2, 0.1, 8, false);
+                    }
+                });
+
+                const wallMat = new THREE.MeshPhongMaterial({ color: 0x00ff77, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+                this.defects.walls.forEach(wall => {
+                    const boundaryStr = this.defects.strings.find(s => s.id === wall.boundaryStringId);
+                    if (!boundaryStr) return;
+                    const mono1 = this.defects.monopoles.find(m => m.id === boundaryStr.monopoles[0]);
+                    const mono2 = this.defects.monopoles.find(m => m.id === boundaryStr.monopoles[1]);
+                    if (!mono1 || !mono2) return;
+                    const shape = new THREE.Shape([new THREE.Vector2(mono1.position.x, mono1.position.y), new THREE.Vector2(mono2.position.x, mono2.position.y), new THREE.Vector2(mono2.position.x, mono2.position.y+0.1)]);
+                    if (!wall.mesh) {
+                        wall.mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), wallMat);
+                        this.defectContainer.add(wall.mesh);
+                    } else {
+                        wall.mesh.geometry.dispose();
+                        wall.mesh.geometry = new THREE.ShapeGeometry(shape);
+                    }
+                    wall.mesh.position.z = mono1.position.z;
+                });
+            }
+
+            updatePhysics() {
+                if (this.defects.strings.length === 0) return;
+                this.defects.monopoles.forEach(m => m.force.set(0, 0, 0));
+                this.defects.strings.forEach(str => {
+                    const mono1 = this.defects.monopoles.find(m => m.id === str.monopoles[0]);
+                    const mono2 = this.defects.monopoles.find(m => m.id === str.monopoles[1]);
+                    if (!mono1 || !mono2) return;
+                    const forceVec = new THREE.Vector3().subVectors(mono2.position, mono1.position);
+                    mono1.force.add(forceVec.clone().multiplyScalar(this.stringTension * 0.01));
+                    mono2.force.sub(forceVec.clone().multiplyScalar(this.stringTension * 0.01));
+                });
+                this.defects.walls.forEach(wall => {
+                    const str = this.defects.strings.find(s => s.id === wall.boundaryStringId);
+                    if (!str) return;
+                    const mono1 = this.defects.monopoles.find(m => m.id === str.monopoles[0]);
+                    const mono2 = this.defects.monopoles.find(m => m.id === str.monopoles[1]);
+                    if (!mono1 || !mono2) return;
+                    const center = new THREE.Vector3().addVectors(mono1.position, mono2.position).multiplyScalar(0.5);
+                    [mono1, mono2].forEach(m => {
+                        const forceVec = new THREE.Vector3().subVectors(center, m.position);
+                        m.force.add(forceVec.normalize().multiplyScalar(this.wallTension * 0.05));
+                    });
+                });
+                this.defects.monopoles.forEach(m => {
+                    const friction = m.velocity.clone().multiplyScalar(-this.hubbleParam);
+                    m.force.add(friction);
+                    m.velocity.add(m.force.clone().multiplyScalar(this.timeStep));
+                    m.position.add(m.velocity.clone().multiplyScalar(this.timeStep));
+                });
+                const stringsToRemove = new Set();
+                this.defects.strings.forEach(str => {
+                    const mono1 = this.defects.monopoles.find(m => m.id === str.monopoles[0]);
+                    const mono2 = this.defects.monopoles.find(m => m.id === str.monopoles[1]);
+                    if (!mono1 || !mono2 || mono1.position.distanceTo(mono2.position) < 0.2) stringsToRemove.add(str.id);
+                });
+                if (stringsToRemove.size > 0) {
+                    const monopolesToRemove = new Set();
+                    this.defects.strings = this.defects.strings.filter(s => {
+                        if(stringsToRemove.has(s.id)) { monopolesToRemove.add(s.monopoles[0]); monopolesToRemove.add(s.monopoles[1]); return false; }
+                        return true;
+                    });
+                    this.defects.monopoles = this.defects.monopoles.filter(m => !monopolesToRemove.has(m.id));
+                    this.defects.walls = this.defects.walls.filter(w => !stringsToRemove.has(w.boundaryStringId));
+                }
+                this.simulationTime += this.timeStep;
+            }
+
+            updateDashboard() {
+                if (Math.floor(this.simulationTime / this.timeStep) % 10 !== 0) return;
+                const monoCount = this.defects.monopoles.length;
+                document.getElementById('monoCount').textContent = monoCount;
+                let totalStringLength = 0;
+                this.defects.strings.forEach(str => {
+                    const mono1 = this.defects.monopoles.find(m => m.id === str.monopoles[0]);
+                    const mono2 = this.defects.monopoles.find(m => m.id === str.monopoles[1]);
+                    if(mono1 && mono2) totalStringLength += mono1.position.distanceTo(mono2.position);
+                });
+                document.getElementById('stringCount').textContent = `${totalStringLength.toFixed(1)} units`;
+                let totalWallArea = 0;
+                 this.defects.walls.forEach(wall => {
+                    const str = this.defects.strings.find(s => s.id === wall.boundaryStringId);
+                    if(!str) return;
+                    const mono1 = this.defects.monopoles.find(m => m.id === str.monopoles[0]);
+                    const mono2 = this.defects.monopoles.find(m => m.id === str.monopoles[1]);
+                    if(mono1 && mono2) totalWallArea += mono1.position.distanceTo(mono2.position) * 0.1;
+                });
+                document.getElementById('wallCount').textContent = `${totalWallArea.toFixed(1)} units²`;
+                const timeLabel = this.simulationTime.toFixed(2);
+                const eMono = monoCount * 1.0;
+                const eString = totalStringLength * this.stringTension;
+                const eWall = totalWallArea * this.wallTension;
+                this.energyChart.data.labels.push(timeLabel);
+                this.energyChart.data.datasets[0].data.push(eWall);
+                this.energyChart.data.datasets[1].data.push(eString);
+                this.energyChart.data.datasets[2].data.push(eMono);
+                if (totalStringLength > 0 && this.simulationTime > 0.1) {
+                    const charLength = Math.sqrt(this.boxSize**3 / totalStringLength);
+                    const scalingParam = charLength / this.simulationTime;
+                    this.scalingChart.data.labels.push(timeLabel);
+                    this.scalingChart.data.datasets[0].data.push(scalingParam);
+                }
+                if(this.energyChart.data.labels.length > 50) {
+                    this.energyChart.data.labels.shift();
+                    this.energyChart.data.datasets.forEach(d => d.data.shift());
+                    this.scalingChart.data.labels.shift();
+                    this.scalingChart.data.datasets[0].data.shift();
+                }
+                this.energyChart.update('none');
+                this.scalingChart.update('none');
+            }
+
+            animate() {
+                requestAnimationFrame(this.animate.bind(this));
+                this.updatePhysics();
+                this.updateDashboard();
+                this.updateMeshes();
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        window.addEventListener('load', () => {
+            new Simulation();
+        });
+    </script>
+</body>
+</html>
