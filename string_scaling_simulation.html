@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic String Network - The Scaling Solution</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --primary-text-color: #c9d1d9;
+            --secondary-text-color: #8b949e;
+            --border-color: #30363d;
+            --accent-color: #58a6ff;
+            --panel-bg-color: #161b22;
+            --input-bg-color: #010409;
+        }
+        body {
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--primary-text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            line-height: 1.6;
+        }
+        #app-container {
+            display: grid;
+            grid-template-columns: 1fr 450px;
+            grid-template-rows: auto 1fr;
+            grid-template-areas:
+                "header header"
+                "main   sidebar";
+            height: 95vh;
+            gap: 1rem;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        h1, h2, h3 {
+            color: var(--primary-text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3em;
+            font-weight: 600;
+        }
+        #header { grid-area: header; text-align: center; }
+        #header h1 { margin: 0; border: none; }
+        #simulation-window {
+            grid-area: main;
+            background-color: #000;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+        }
+        canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+        #sidebar {
+            grid-area: sidebar;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+            min-height: 0;
+        }
+        .panel {
+            background-color: var(--panel-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+        }
+        .control-group { margin-bottom: 1.5rem; }
+        label, .description { display: block; margin-bottom: 0.5rem; }
+        .description { font-size: 0.85rem; color: var(--secondary-text-color); }
+        .control-group span { font-size: 0.9rem; color: var(--accent-color); margin-left: 0.5rem; }
+        button, select {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--input-bg-color);
+            color: var(--primary-text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        button { background-color: var(--accent-color); border-color: var(--accent-color); font-weight: 600; font-size: 1rem;}
+        button:hover { filter: brightness(1.2); }
+        input[type="range"] { width: 100%; }
+
+        #educational-content {
+            padding: 2rem 4rem;
+            max-width: 1000px;
+            margin: 4rem auto;
+        }
+        #educational-content h2 { font-size: 2.5rem; border-top: 2px solid var(--border-color); padding-top: 1.5rem; margin-top: 3rem; }
+        #educational-content h3 { font-size: 1.8rem; border: none; }
+        #educational-content h4 { font-size: 1.4rem; color: var(--accent-color); border-bottom: 1px solid var(--border-color); padding-bottom: 0.2em; }
+        code { background-color: var(--input-bg-color); padding: 0.2em 0.4em; border-radius: 4px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+        blockquote { border-left: 4px solid var(--accent-color); padding-left: 1rem; margin-left: 0; color: var(--secondary-text-color); font-style: italic; }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <header id="header">
+            <h1>Cosmic String Network: The Scaling Solution</h1>
+        </header>
+
+        <main id="simulation-window"></main>
+
+        <aside id="sidebar">
+            <div id="controls-panel" class="panel">
+                <h2>Controls</h2>
+                <div class="control-group">
+                    <button id="start-sim-btn">Start/Pause</button>
+                    <button id="reset-sim-btn" style="margin-top: 0.5rem;">Reset Simulation</button>
+                </div>
+                <div class="control-group">
+                    <label for="density-slider">Initial String Density (ζ)</label>
+                    <input type="range" id="density-slider" min="1" max="10" value="4" step="1">
+                    <span id="density-readout">4</span>
+                    <p class="description">Number of long strings per initial volume.</p>
+                </div>
+                <div class="control-group">
+                    <label for="loop-eff-slider">Loop Formation Efficiency</label>
+                    <input type="range" id="loop-eff-slider" min="0" max="100" value="90" step="1">
+                    <span id="loop-eff-readout">90%</span>
+                    <p class="description">Probability a self-intersection creates a loop.</p>
+                </div>
+                <div class="control-group">
+                    <label for="g-back-reaction-slider">Gravitational Back-Reaction</label>
+                    <input type="range" id="g-back-reaction-slider" min="0" max="10" value="0" step="0.1">
+                    <span id="g-back-reaction-readout">0.0</span>
+                    <p class="description">Strength of gravitational pull from other strings.</p>
+                </div>
+                <div class="control-group">
+                    <label for="expansion-select">Expansion Model</label>
+                    <select id="expansion-select">
+                        <option value="radiation">Radiation Dominated (a ∝ t¹/²)</option>
+                        <option value="matter">Matter Dominated (a ∝ t²/³)</option>
+                    </select>
+                </div>
+            </div>
+            <div id="info-panel" class="panel">
+                 <h3>Live Commentary</h3>
+                 <p id="live-commentary">Ready to simulate the network.</p>
+            </div>
+            <div id="quantitative-panel" class="panel">
+                <h3>Network Statistics</h3>
+                <p><strong>Scaling Parameter (L/t):</strong> <span id="scaling-param">N/A</span></p>
+                <canvas id="scaling-plot-canvas" height="150"></canvas>
+                <p><strong>Loop Production Rate:</strong></p>
+                <canvas id="loop-plot-canvas" height="150"></canvas>
+                <p><strong>Energy Density (log-log):</strong></p>
+                <canvas id="energy-plot-canvas" height="150"></canvas>
+            </div>
+        </aside>
+    </div>
+
+    <div id="educational-content" class="panel" style="max-width: 1000px; margin: 4rem auto;">
+        <article>
+            <h2>The Physics of Scaling: A Deep Dive into Cosmic String Networks</h2>
+            <p>This simulation explores one of the most important concepts in the study of cosmic strings: the **scaling solution**. A network of cosmic strings can't just exist; it must evolve in a very specific way to be consistent with the universe we observe. If the network's energy density diluted too quickly, it would be irrelevant today. If it diluted too slowly, it would dominate the universe, a scenario we can rule out. The network must find a balance, a "scaling solution," where its properties evolve in lockstep with the expanding universe. This simulation lets you see how that balance is achieved.</p>
+
+            <section>
+                <h3>Part 1: The Velocity-One-Scale (VOS) Model</h4>
+                <p>To understand the complex evolution of a tangled string network, physicists use an analytical framework called the **Velocity-One-Scale (VOS) model**. It simplifies the entire network down to just two key macroscopic parameters:</p>
+                <ul>
+                    <li><strong>The Characteristic Length Scale (L):</strong> This represents the average distance between long strings in the network. You can think of it as the "correlation length" of the tangle. It is defined by `L(t) = sqrt(V / μ)`, where `V` is the volume and `μ` is the total energy (and thus length) of the string network within that volume.</li>
+                    <li><strong>The Root-Mean-Square (RMS) Velocity (v):</strong> This is the average speed of the string segments, representing the kinetic energy of the network.</li>
+                </ul>
+                <p>The VOS model then writes down two coupled differential equations describing how `L` and `v` change over time. The evolution of `L` depends on two competing effects: the stretching of the network by Hubble expansion (which increases `L`) and the production of loops (which removes length from the long-string network, decreasing `L`). The evolution of `v` is also a competition between the acceleration caused by string tension (which increases `v`) and the damping caused by Hubble friction (which decreases `v`). This simulation numerically solves a simplified version of these equations.</p>
+                <blockquote><strong>The Scaling Solution:</strong> A scaling solution is reached when the characteristic length `L` grows in direct proportion to cosmological time `t` (i.e., the horizon size). This means the ratio `L/t`, called the **scaling parameter**, approaches a constant value. When this happens, the overall "look" of the network appears statistically the same at any epoch, just scaled up in size. The main plot in this simulation, "Scaling Parameter (L/t)", allows you to watch for this convergence. If the line flattens out, the network has reached a scaling solution.</blockquote>
+            </section>
+
+            <section>
+                <h3>Part 2: The Importance of Scaling and Loops</h4>
+                <h4>Why Scaling is Not Optional</h4>
+                <p>The energy density of a cosmic string network is given by `ρ_s = μ / L²`, where `μ` is the string tension. The background energy density of the universe, `ρ_b`, changes with the scale factor `a(t)`. In the radiation-dominated era, `ρ_r ∝ 1/a⁴`. In the matter-dominated era, `ρ_m ∝ 1/a³`.</p>
+                <p>If the string network did nothing but stretch with the expansion (no loop production), its total length in a comoving volume would be constant, and its physical length would grow as `a(t)`. The energy density would then dilute as `ρ_s ∝ 1/a²`. This is much slower than the dilution of radiation or matter. A network that only stretches would inevitably come to dominate the energy density of the universe, which is ruled out by observations. This is a cosmological catastrophe, similar to the monopole problem.</p>
+                <p>The scaling solution saves the theory. If `L` grows in proportion to `t`, then during the radiation era (`a ∝ t¹/²`), we find `L ∝ a²`, so `ρ_s ∝ 1/L² ∝ 1/a⁴`, which is the same as the background radiation density. During the matter era (`a ∝ t²/³`), we find `L ∝ a³/²`, so `ρ_s ∝ 1/L² ∝ 1/a³`, same as the background matter density. The result is that the ratio `ρ_s / ρ_b` remains constant. The string network never comes to dominate, but it also never disappears, remaining as a constant small fraction of the total cosmic energy budget.</p>
+
+                <h4>Loops as an Energy Sink</h4>
+                <p>How does the network achieve this? The crucial mechanism is **loop formation**. The only way for the network of "infinite" strings to lose energy and prevent itself from dominating is to chop off pieces of itself. When a long string intersects with itself, a closed loop can be pinched off. This removes length (and therefore energy) from the long string network.</p>
+                <p>These loops are then independent entities. They oscillate relativistically under their own tension, and this violent oscillation is an incredibly powerful source of gravitational radiation. By emitting gravitational waves, the loops lose their energy, shrink, and eventually disappear entirely. This process is the primary energy sink for the entire network. The balance between Hubble stretching (gaining energy) and loop production (losing energy) is what allows the network to reach the stable scaling solution. The "Loop Formation Efficiency" slider in this simulation directly controls how effectively the network can shed its energy.</p>
+            </section>
+
+            <section>
+                <h2>Part 3: Maximal Depth - Advanced Topics</h2>
+                <h4>Loop Size Distribution</h4>
+                <p>A simple "efficiency" slider is a simplification. In reality, numerical simulations show that when loops are formed, they are produced with a wide range of sizes. The distribution of these loop sizes is a critical input for many predictions, especially for the gravitational wave background. Most analytical models assume loops are produced with a size that is a fixed fraction of the horizon size at the time of formation. However, high-resolution computer simulations suggest a more complex picture, with a vast number of very tiny loops being produced, which has significant implications for the resulting gravitational wave spectrum.</p>
+
+                <h4>The Impact of Intercommutation Probability (p < 1)</h4>
+                <p>It is almost always assumed that when strings cross, they intercommute with a probability `p=1`. But what if this is not the case? If `p < 1`, then sometimes strings will pass right through each other without interacting. This would "frustrate" the network's ability to simplify itself. It would be less efficient at forming loops, which is its primary way of losing energy. As a result, the characteristic length scale `L` would grow more slowly, and the energy density of the network `ρ_s` would be higher. A lower intercommutation probability leads to a denser, more complex string network and a stronger gravitational wave signal. Current constraints from the CMB and pulsar timing arrays suggest that `p` must be very close to 1 for the simplest string models to be viable.</p>
+
+                <h4>Calculating the Stochastic Gravitational Wave Background</h4>
+                <p>The ultimate goal of many cosmic string models is to predict the spectrum of the stochastic gravitational wave background they produce. This is a complex calculation that integrates the contributions of all the loops produced over cosmic history. The key ingredients are:</p>
+                <ol>
+                    <li><strong>The loop production rate and size distribution:</strong> How many loops of a certain size are produced at a given time? This comes from network simulations like this one.</li>
+                    <li><strong>The gravitational wave emission spectrum of a single loop:</strong> A single oscillating loop doesn't emit at just one frequency, but at a series of harmonics. The power emitted depends on features like cusps and kinks.</li>
+                    <li><strong>Cosmological integration:</strong> One must sum the redshifted signals from all loops created at all times throughout the universe's history.</li>
+                </ol>
+                <p>The resulting spectrum `Ω_gw(f)` (the energy density of gravitational waves per logarithmic frequency interval) typically has a broad, flat plateau. The height of this plateau is directly proportional to the string tension `Gμ`. This is why gravitational wave observatories provide some of the strongest constraints on cosmic string theories. A non-detection at a certain sensitivity level can rule out all string models above a certain tension.</p>
+            </section>
+        </article>
+    </div>
+
+    <script src="bundle.js"></script>
+</body>
+</html>
